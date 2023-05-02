@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -66,7 +67,6 @@ func (rs sceneRoutes) Routes() chi.Router {
 		r.Get("/stream.mpd/{segment}_a.webm", rs.StreamDASHAudioSegment)
 
 		// Original endpoints
-		r.Get("/org/*.funscript", rs.Funscript)
 		r.Get("/org/*", rs.StreamOrgDirect)
 
 		r.Get("/screenshot", rs.Screenshot)
@@ -92,6 +92,17 @@ func (rs sceneRoutes) Routes() chi.Router {
 // region Handlers
 
 func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
+	// check if it's funscript
+	query, err := url.QueryUnescape(r.RequestURI)
+	if err == nil {
+		// no problem in decoding requestURI
+		var aStr = strings.Split(query, ".")
+		if strings.ToLower(aStr[len(aStr)-1]) == "funscript" {
+			// it's a funscript request
+			rs.Funscript(w, r)
+			return
+		}
+	}
 	scene := r.Context().Value(sceneKey).(*models.Scene)
 	// return 404 if the scene does not have primary file
 	filePath := scene.Files.Primary()
