@@ -16,13 +16,16 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
   const isAndroid = /(android)/i.test(navigator.userAgent);
   const isAppleDevice = /(ipod|iphone|ipad)/i.test(navigator.userAgent);
   const intl = useIntl();
-  const alwaysShow = true;  // Added
+  const alwaysShow = true; // Added
 
   const { paths } = scene;
-  const { files } = scene;  // added
-  const { format } = files[0]; // added. like "mp4" or "mkv"
+  const { files } = scene; // added
+  const { path } = files[0]; // added.
+  let file = path?.split("\\").pop(); // like "file.mp4" or "file.mkv"
+  if (file == undefined) file = "";
 
-  if (!paths || !paths.stream || (!isAndroid && !isAppleDevice && !alwaysShow))  // moded
+  if (!paths || !paths.stream || (!isAndroid && !isAppleDevice && !alwaysShow))
+    // moded
     return <span />;
 
   const { stream } = paths;
@@ -44,8 +47,10 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
     streamURL.search = `url=${encodeURIComponent(stream)}`;
     streamURL.protocol = "vlc-x-callback";
     url = streamURL.toString();
-  } else if (alwaysShow){  // In all other cases.
-    url = stream + "." + format;  // like http://192.168.1.10:9999/scene/123/stream.mp4
+  } else if (alwaysShow) {
+    // In all other cases.
+
+    url = stream + "/org/" + encodeURIComponent(file.toString()); // like http://192.168.1.10:9999/scene/123/stream/org/file.mp4
   }
 
   return (
@@ -55,6 +60,7 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
       title={intl.formatMessage({ id: "actions.open_in_external_player" })}
     >
       <a href={url}>
+        Ext. Player
         <Icon icon={faExternalLinkAlt} color="white" />
       </a>
     </Button>
