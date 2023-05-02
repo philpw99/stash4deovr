@@ -21,7 +21,8 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
   const { paths } = scene;
   const { files } = scene; // added
   const { path } = files[0]; // added.
-  const file = path.split("\\").pop(); // like "file.mp4" or "file.mkv"
+  let file = path?.split("\\").pop(); // like "file.mp4" or "file.mkv"
+  if (file == undefined) file = "";
 
   if (!paths || !paths.stream || (!isAndroid && !isAppleDevice && !alwaysShow))
     // moded
@@ -58,7 +59,8 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
       variant="secondary"
       title={intl.formatMessage({ id: "actions.open_in_external_player" })}
     >
-      <a href={url}>Ext. Player
+      <a href={url}>
+        Ext. Player
         <Icon icon={faExternalLinkAlt} color="white" />
       </a>
     </Button>
