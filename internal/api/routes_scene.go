@@ -66,8 +66,8 @@ func (rs sceneRoutes) Routes() chi.Router {
 		r.Get("/stream.mpd/{segment}_a.webm", rs.StreamDASHAudioSegment)
 
 		// Original endpoints
-		r.Get("/streamorg.funscript", rs.Funscript)
-		r.Get("/streamorg.*", rs.StreamOrgDirect)
+		r.Get("/org/*.funscript", rs.Funscript)
+		r.Get("/org/*", rs.StreamOrgDirect)
 
 		r.Get("/screenshot", rs.Screenshot)
 		r.Get("/preview", rs.Preview)
