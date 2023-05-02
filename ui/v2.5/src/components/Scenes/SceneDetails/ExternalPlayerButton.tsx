@@ -49,7 +49,7 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
   } else if (alwaysShow) {
     // In all other cases.
 
-    url = stream + "/org/" + encodeURIComponent(file); // like http://192.168.1.10:9999/scene/123/stream/org/file.mp4
+    url = stream + "/org/" + encodeURIComponent(file.toString()); // like http://192.168.1.10:9999/scene/123/stream/org/file.mp4
   }
 
   return (
