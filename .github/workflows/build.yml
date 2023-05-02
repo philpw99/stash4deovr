@@ -7,6 +7,11 @@ on:
   release:
     types: [ published ]
 
+permissions:
+  pull-requests: write
+  issues: write
+  repository-projects: write
+
 concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
