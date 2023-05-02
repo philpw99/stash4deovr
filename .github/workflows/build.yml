@@ -7,10 +7,7 @@ on:
   release:
     types: [ published ]
 
-permissions:
-  pull-requests: write
-  issues: write
-  repository-projects: write
+permissions: write-all
 
 concurrency:
   group: ${{ github.ref }}
