@@ -2,6 +2,9 @@
 Original Stash is at:
 https://stashapp.cc
 ### **This is an unofficial built of Stash which offer simple VR video playback in DeoVR.**
+
+Below is the mirrored info from original Stash.
+
 [![Build](https://github.com/stashapp/stash/actions/workflows/build.yml/badge.svg?branch=develop&event=push)](https://github.com/stashapp/stash/actions/workflows/build.yml)
 [![Docker pulls](https://img.shields.io/docker/pulls/stashapp/stash.svg)](https://hub.docker.com/r/stashapp/stash 'DockerHub')
 [![Open Collective backers](https://img.shields.io/opencollective/backers/stashapp?logo=opencollective)](https://opencollective.com/stashapp)
