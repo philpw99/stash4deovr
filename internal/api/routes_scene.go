@@ -65,6 +65,10 @@ func (rs sceneRoutes) Routes() chi.Router {
 		r.Get("/stream.mpd/{segment}_v.webm", rs.StreamDASHVideoSegment)
 		r.Get("/stream.mpd/{segment}_a.webm", rs.StreamDASHAudioSegment)
 
+		// Original endpoints
+		r.Get("/streamorg.funscript", rs.Funscript)
+		r.Get("/streamorg.*", rs.StreamOrgDirect)
+
 		r.Get("/screenshot", rs.Screenshot)
 		r.Get("/preview", rs.Preview)
 		r.Get("/webp", rs.Webp)
@@ -86,6 +90,17 @@ func (rs sceneRoutes) Routes() chi.Router {
 }
 
 // region Handlers
+
+func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
+	scene := r.Context().Value(sceneKey).(*models.Scene)
+	// return 404 if the scene does not have primary file
+	filePath := scene.Files.Primary()
+	if filePath == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	http.ServeFile(w, r, filePath.Path)
+}
 
 func (rs sceneRoutes) StreamDirect(w http.ResponseWriter, r *http.Request) {
 

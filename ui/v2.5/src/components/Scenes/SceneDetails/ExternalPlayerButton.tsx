@@ -16,10 +16,13 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
   const isAndroid = /(android)/i.test(navigator.userAgent);
   const isAppleDevice = /(ipod|iphone|ipad)/i.test(navigator.userAgent);
   const intl = useIntl();
+  const alwaysShow = true;  // Added
 
   const { paths } = scene;
+  const { files } = scene;  // added
+  const { format } = files[0]; // added. like "mp4" or "mkv"
 
-  if (!paths || !paths.stream || (!isAndroid && !isAppleDevice))
+  if (!paths || !paths.stream || (!isAndroid && !isAppleDevice && !alwaysShow))  // moded
     return <span />;
 
   const { stream } = paths;
@@ -41,6 +44,8 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
     streamURL.search = `url=${encodeURIComponent(stream)}`;
     streamURL.protocol = "vlc-x-callback";
     url = streamURL.toString();
+  } else if (alwaysShow){  // In all other cases.
+    url = stream + "." + format;  // like http://192.168.1.10:9999/scene/123/stream.mp4
   }
 
   return (
