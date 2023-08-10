@@ -17,6 +17,7 @@ import {
   ScrapeDialogRow,
   ScrapedImageRow,
   ScrapedInputGroupRow,
+  ScrapedStringListRow,
   ScrapedTextAreaRow,
   ScrapeResult,
   ZeroableScrapeResult,
@@ -58,8 +59,11 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
   const [title, setTitle] = useState<ScrapeResult<string>>(
     new ScrapeResult<string>(dest.title)
   );
-  const [url, setURL] = useState<ScrapeResult<string>>(
-    new ScrapeResult<string>(dest.url)
+  const [code, setCode] = useState<ScrapeResult<string>>(
+    new ScrapeResult<string>(dest.code)
+  );
+  const [url, setURL] = useState<ScrapeResult<string[]>>(
+    new ScrapeResult<string[]>(dest.urls)
   );
   const [date, setDate] = useState<ScrapeResult<string>>(
     new ScrapeResult<string>(dest.date)
@@ -157,8 +161,15 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
         !dest.title
       )
     );
+    setCode(
+      new ScrapeResult(dest.code, sources.find((s) => s.code)?.code, !dest.code)
+    );
     setURL(
-      new ScrapeResult(dest.url, sources.find((s) => s.url)?.url, !dest.url)
+      new ScrapeResult(
+        dest.urls,
+        sources.find((s) => s.urls)?.urls,
+        !dest.urls?.length
+      )
     );
     setDate(
       new ScrapeResult(dest.date, sources.find((s) => s.date)?.date, !dest.date)
@@ -290,6 +301,7 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
   const hasValues = useMemo(() => {
     return hasScrapedValues([
       title,
+      code,
       url,
       date,
       rating,
@@ -306,6 +318,7 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
     ]);
   }, [
     title,
+    code,
     url,
     date,
     rating,
@@ -349,7 +362,12 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
           onChange={(value) => setTitle(value)}
         />
         <ScrapedInputGroupRow
-          title={intl.formatMessage({ id: "url" })}
+          title={intl.formatMessage({ id: "scene_code" })}
+          result={code}
+          onChange={(value) => setCode(value)}
+        />
+        <ScrapedStringListRow
+          title={intl.formatMessage({ id: "urls" })}
           result={url}
           onChange={(value) => setURL(value)}
         />
@@ -532,7 +550,8 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
     return {
       id: dest.id,
       title: title.getNewValue(),
-      url: url.getNewValue(),
+      code: code.getNewValue(),
+      urls: url.getNewValue(),
       date: date.getNewValue(),
       rating100: rating.getNewValue(),
       o_counter: oCounter.getNewValue(),

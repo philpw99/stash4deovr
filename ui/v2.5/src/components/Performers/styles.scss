@@ -1,7 +1,13 @@
 #performer-page {
-  .performer-image-container .performer {
-    max-height: calc(100vh - 6rem);
-    max-width: 100%;
+  .performer-image-container {
+    .btn {
+      box-shadow: none;
+    }
+
+    .performer {
+      max-height: calc(100vh - 6rem);
+      max-width: 100%;
+    }
   }
 
   .content-container {
@@ -10,12 +16,9 @@
 
   .performer-head {
     display: inline-block;
-    margin-bottom: 2rem;
     vertical-align: top;
 
     .name-icons {
-      margin-left: 10px;
-
       .not-favorite {
         color: rgba(191, 204, 214, 0.5);
       }
@@ -155,13 +158,14 @@
 
 .PerformerScrapeModal {
   &-list {
-    list-style-type: none;
+    list-style: none;
     max-height: 50vh;
-    overflow-x: auto;
-    padding-left: 1rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-inline-start: 0;
 
-    .btn {
-      font-size: 1.2rem;
+    li {
+      cursor: pointer;
     }
   }
 }
@@ -184,27 +188,21 @@
   color: #c8a2c8;
 }
 
-.performer-height {
-  .height-imperial {
-    &::before {
-      content: " (";
-    }
+.performer-height .height-imperial,
+.performer-weight .weight-imperial,
+.performer-penis-length .penis-length-imperial {
+  &::before {
+    content: " (";
+  }
 
-    &::after {
-      content: ")";
-    }
+  &::after {
+    content: ")";
   }
 }
 
-.performer-weight {
-  .weight-imperial {
-    &::before {
-      content: " (";
-    }
-
-    &::after {
-      content: ")";
-    }
+.penis-circumcised {
+  &::before {
+    content: " ";
   }
 }
 
@@ -213,4 +211,15 @@
   /* stylelint-disable */
   font-size: 0.875em;
   /* stylelint-enable */
+  padding-right: 0.5rem;
+}
+
+.performer-result .performer-details > span {
+  &::after {
+    content: " • ";
+  }
+
+  &:last-child::after {
+    content: "";
+  }
 }

@@ -16,10 +16,8 @@ import {
   queryScrapeScene,
   queryScrapeSceneURL,
   useListSceneScrapers,
-  useSceneUpdate,
   mutateReloadScrapers,
   queryScrapeSceneQueryFragment,
-  mutateCreateScene,
 } from "src/core/StashService";
 import {
   PerformerSelect,
@@ -31,13 +29,13 @@ import {
 import { Icon } from "src/components/Shared/Icon";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { ImageInput } from "src/components/Shared/ImageInput";
-import { URLField } from "src/components/Shared/URLField";
+import { URLListInput } from "src/components/Shared/URLField";
 import { useToast } from "src/hooks/Toast";
 import ImageUtils from "src/utils/image";
 import FormUtils from "src/utils/form";
 import { getStashIDs } from "src/utils/stashIds";
 import { useFormik } from "formik";
-import { Prompt, useHistory } from "react-router-dom";
+import { Prompt } from "react-router-dom";
 import { ConfigurationContext } from "src/hooks/Config";
 import { stashboxDisplayName } from "src/utils/stashbox";
 import { SceneMovieTable } from "./SceneMovieTable";
@@ -59,24 +57,23 @@ const SceneQueryModal = lazyComponent(() => import("./SceneQueryModal"));
 
 interface IProps {
   scene: Partial<GQL.SceneDataFragment>;
-  fileID?: string;
   initialCoverImage?: string;
   isNew?: boolean;
   isVisible: boolean;
+  onSubmit: (input: GQL.SceneCreateInput) => Promise<void>;
   onDelete?: () => void;
 }
 
 export const SceneEditPanel: React.FC<IProps> = ({
   scene,
-  fileID,
   initialCoverImage,
   isNew = false,
   isVisible,
+  onSubmit,
   onDelete,
 }) => {
   const intl = useIntl();
   const Toast = useToast();
-  const history = useHistory();
 
   const [galleries, setGalleries] = useState<{ id: string; title: string }[]>(
     []
@@ -92,14 +89,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
   const [scrapedScene, setScrapedScene] = useState<GQL.ScrapedScene | null>();
   const [endpoint, setEndpoint] = useState<string>();
 
-  const [coverImagePreview, setCoverImagePreview] = useState<string>();
-
-  useEffect(() => {
-    setCoverImagePreview(
-      initialCoverImage ?? scene.paths?.screenshot ?? undefined
-    );
-  }, [scene.paths?.screenshot, initialCoverImage]);
-
   useEffect(() => {
     setGalleries(
       scene.galleries?.map((g) => ({
@@ -114,12 +103,28 @@ export const SceneEditPanel: React.FC<IProps> = ({
   // Network state
   const [isLoading, setIsLoading] = useState(false);
 
-  const [updateScene] = useSceneUpdate();
-
   const schema = yup.object({
     title: yup.string().ensure(),
     code: yup.string().ensure(),
-    url: yup.string().ensure(),
+    urls: yup
+      .array(yup.string().required())
+      .defined()
+      .test({
+        name: "unique",
+        test: (value) => {
+          const dupes = value
+            .map((e, i, a) => {
+              if (a.indexOf(e) !== i) {
+                return String(i - 1);
+              } else {
+                return null;
+              }
+            })
+            .filter((e) => e !== null) as string[];
+          if (dupes.length === 0) return true;
+          return new yup.ValidationError(dupes.join(" "), value, "urls");
+        },
+      }),
     date: yup
       .string()
       .ensure()
@@ -156,7 +161,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
     () => ({
       title: scene.title ?? "",
       code: scene.code ?? "",
-      url: scene.url ?? "",
+      urls: scene.urls ?? [],
       date: scene.date ?? "",
       director: scene.director ?? "",
       rating100: scene.rating100 ?? null,
@@ -182,6 +187,19 @@ export const SceneEditPanel: React.FC<IProps> = ({
     validationSchema: schema,
     onSubmit: (values) => onSave(values),
   });
+
+  const coverImagePreview = useMemo(() => {
+    const sceneImage = scene.paths?.screenshot;
+    const formImage = formik.values.cover_image;
+    if (formImage === null && sceneImage) {
+      const sceneImageURL = new URL(sceneImage);
+      sceneImageURL.searchParams.set("default", "true");
+      return sceneImageURL.toString();
+    } else if (formImage) {
+      return formImage;
+    }
+    return sceneImage;
+  }, [formik.values.cover_image, scene.paths?.screenshot]);
 
   function setRating(v: number) {
     formik.setFieldValue("rating100", v);
@@ -209,7 +227,9 @@ export const SceneEditPanel: React.FC<IProps> = ({
   useEffect(() => {
     if (isVisible) {
       Mousetrap.bind("s s", () => {
-        formik.handleSubmit();
+        if (formik.dirty) {
+          formik.submitForm();
+        }
       });
       Mousetrap.bind("d d", () => {
         if (onDelete) {
@@ -259,35 +279,8 @@ export const SceneEditPanel: React.FC<IProps> = ({
   async function onSave(input: InputValues) {
     setIsLoading(true);
     try {
-      if (!isNew) {
-        const result = await updateScene({
-          variables: {
-            input: {
-              id: scene.id!,
-              ...input,
-            },
-          },
-        });
-        if (result.data?.sceneUpdate) {
-          Toast.success({
-            content: intl.formatMessage(
-              { id: "toast.updated_entity" },
-              {
-                entity: intl.formatMessage({ id: "scene" }).toLocaleLowerCase(),
-              }
-            ),
-          });
-          formik.resetForm();
-        }
-      } else {
-        const result = await mutateCreateScene({
-          ...input,
-          file_ids: fileID ? [fileID] : undefined,
-        });
-        if (result.data?.sceneCreate?.id) {
-          history.push(`/scenes/${result.data?.sceneCreate.id}`);
-        }
-      }
+      await onSubmit(input);
+      formik.resetForm();
     } catch (e) {
       Toast.error(e);
     }
@@ -318,7 +311,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
   const encodingImage = ImageUtils.usePasteImage(onImageLoad);
 
   function onImageLoad(imageData: string) {
-    setCoverImagePreview(imageData);
     formik.setFieldValue("cover_image", imageData);
   }
 
@@ -359,7 +351,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
         director: fragment.director,
         remote_site_id: fragment.remote_site_id,
         title: fragment.title,
-        url: fragment.url,
+        urls: fragment.urls,
       };
 
       const result = await queryScrapeSceneQueryFragment(s, input);
@@ -575,8 +567,8 @@ export const SceneEditPanel: React.FC<IProps> = ({
       formik.setFieldValue("date", updatedScene.date);
     }
 
-    if (updatedScene.url) {
-      formik.setFieldValue("url", updatedScene.url);
+    if (updatedScene.urls) {
+      formik.setFieldValue("urls", updatedScene.urls);
     }
 
     if (updatedScene.studio && updatedScene.studio.stored_id) {
@@ -619,7 +611,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
     if (updatedScene.image) {
       // image is a base64 string
       formik.setFieldValue("cover_image", updatedScene.image);
-      setCoverImagePreview(updatedScene.image);
     }
 
     if (updatedScene.remote_site_id && endpoint) {
@@ -651,13 +642,13 @@ export const SceneEditPanel: React.FC<IProps> = ({
     }
   }
 
-  async function onScrapeSceneURL() {
-    if (!formik.values.url) {
+  async function onScrapeSceneURL(url: string) {
+    if (!url) {
       return;
     }
     setIsLoading(true);
     try {
-      const result = await queryScrapeSceneURL(formik.values.url);
+      const result = await queryScrapeSceneURL(url);
       if (!result.data || !result.data.scrapeSceneURL) {
         return;
       }
@@ -692,7 +683,11 @@ export const SceneEditPanel: React.FC<IProps> = ({
 
   const image = useMemo(() => {
     if (encodingImage) {
-      return <LoadingIndicator message="Encoding image..." />;
+      return (
+        <LoadingIndicator
+          message={`${intl.formatMessage({ id: "encoding_image" })}...`}
+        />
+      );
     }
 
     if (coverImagePreview) {
@@ -709,6 +704,14 @@ export const SceneEditPanel: React.FC<IProps> = ({
   }, [encodingImage, coverImagePreview, intl]);
 
   if (isLoading) return <LoadingIndicator />;
+
+  const urlsErrors = Array.isArray(formik.errors.urls)
+    ? formik.errors.urls[0]
+    : formik.errors.urls;
+  const urlsErrorMsg = urlsErrors
+    ? intl.formatMessage({ id: "validation.urls_must_be_unique" })
+    : undefined;
+  const urlsErrorIdx = urlsErrors?.split(" ").map((e) => parseInt(e));
 
   return (
     <div id="scene-edit-details">
@@ -755,22 +758,23 @@ export const SceneEditPanel: React.FC<IProps> = ({
           <div className="col-12 col-lg-7 col-xl-12">
             {renderTextField("title", intl.formatMessage({ id: "title" }))}
             {renderTextField("code", intl.formatMessage({ id: "scene_code" }))}
-            <Form.Group controlId="url" as={Row}>
+            <Form.Group controlId="urls" as={Row}>
               <Col xs={3} className="pr-0 url-label">
                 <Form.Label className="col-form-label">
-                  <FormattedMessage id="url" />
+                  <FormattedMessage id="urls" />
                 </Form.Label>
               </Col>
               <Col xs={9}>
-                <URLField
-                  {...formik.getFieldProps("url")}
-                  onScrapeClick={onScrapeSceneURL}
+                <URLListInput
+                  value={formik.values.urls ?? []}
+                  setValue={(value) => formik.setFieldValue("urls", value)}
+                  errors={urlsErrorMsg}
+                  errorIdx={urlsErrorIdx}
+                  onScrapeClick={(url) => onScrapeSceneURL(url)}
                   urlScrapable={urlScrapable}
-                  isInvalid={!!formik.getFieldMeta("url").error}
                 />
               </Col>
             </Form.Group>
-
             <Form.Group controlId="date" as={Row}>
               {FormUtils.renderLabel({
                 title: intl.formatMessage({ id: "date" }),
@@ -783,7 +787,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 />
               </Col>
             </Form.Group>
-
             {renderTextField(
               "director",
               intl.formatMessage({ id: "director" })
@@ -817,7 +820,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 />
               </Col>
             </Form.Group>
-
             <Form.Group controlId="studio" as={Row}>
               {FormUtils.renderLabel({
                 title: intl.formatMessage({ id: "studio" }),
@@ -838,7 +840,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 />
               </Col>
             </Form.Group>
-
             <Form.Group controlId="performers" as={Row}>
               {FormUtils.renderLabel({
                 title: intl.formatMessage({ id: "performers" }),
@@ -861,7 +862,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 />
               </Col>
             </Form.Group>
-
             <Form.Group controlId="moviesScenes" as={Row}>
               {FormUtils.renderLabel({
                 title: `${intl.formatMessage({
@@ -884,7 +884,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 {renderTableMovies()}
               </Col>
             </Form.Group>
-
             <Form.Group controlId="tags" as={Row}>
               {FormUtils.renderLabel({
                 title: intl.formatMessage({ id: "tags" }),
@@ -904,6 +903,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
                     )
                   }
                   ids={formik.values.tag_ids}
+                  hoverPlacement="right"
                 />
               </Col>
             </Form.Group>

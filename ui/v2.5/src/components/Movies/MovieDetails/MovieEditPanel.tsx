@@ -15,20 +15,17 @@ import { URLField } from "src/components/Shared/URLField";
 import { useToast } from "src/hooks/Toast";
 import { Modal as BSModal, Form, Button, Col, Row } from "react-bootstrap";
 import DurationUtils from "src/utils/duration";
-import FormUtils from "src/utils/form";
 import ImageUtils from "src/utils/image";
-import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import { useFormik } from "formik";
 import { Prompt } from "react-router-dom";
 import { MovieScrapeDialog } from "./MovieScrapeDialog";
-import { useRatingKeybinds } from "src/hooks/keybinds";
-import { ConfigurationContext } from "src/hooks/Config";
 import isEqual from "lodash-es/isEqual";
 import { DateInput } from "src/components/Shared/DateInput";
+import { handleUnsavedChanges } from "src/utils/navigation";
 
 interface IMovieEditPanel {
   movie: Partial<GQL.MovieDataFragment>;
-  onSubmit: (movie: GQL.MovieCreateInput) => void;
+  onSubmit: (movie: GQL.MovieCreateInput) => Promise<void>;
   onCancel: () => void;
   onDelete: () => void;
   setFrontImage: (image?: string | null) => void;
@@ -47,7 +44,6 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
 }) => {
   const intl = useIntl();
   const Toast = useToast();
-  const { configuration: stashConfig } = React.useContext(ConfigurationContext);
 
   const isNew = movie.id === undefined;
 
@@ -58,6 +54,11 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
 
   const Scrapers = useListMovieScrapers();
   const [scrapedMovie, setScrapedMovie] = useState<GQL.ScrapedMovie>();
+
+  const labelXS = 3;
+  const labelXL = 2;
+  const fieldXS = 9;
+  const fieldXL = 7;
 
   const schema = yup.object({
     name: yup.string().required(),
@@ -78,7 +79,6 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
       }),
     studio_id: yup.string().required().nullable(),
     director: yup.string().ensure(),
-    rating100: yup.number().nullable().defined(),
     url: yup.string().ensure(),
     synopsis: yup.string().ensure(),
     front_image: yup.string().nullable().optional(),
@@ -92,7 +92,6 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
     date: movie?.date ?? "",
     studio_id: movie?.studio?.id ?? null,
     director: movie?.director ?? "",
-    rating100: movie?.rating100 ?? null,
     url: movie?.url ?? "",
     synopsis: movie?.synopsis ?? "",
   };
@@ -103,24 +102,8 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
     initialValues,
     enableReinitialize: true,
     validationSchema: schema,
-    onSubmit: (values) => onSubmit(values),
+    onSubmit: (values) => onSave(values),
   });
-
-  function setRating(v: number) {
-    formik.setFieldValue("rating100", v);
-  }
-
-  useRatingKeybinds(
-    true,
-    stashConfig?.ui?.ratingSystemOptions?.type,
-    setRating
-  );
-
-  function onCancelEditing() {
-    setFrontImage(undefined);
-    setBackImage(undefined);
-    onCancel?.();
-  }
 
   // set up hotkeys
   useEffect(() => {
@@ -128,7 +111,11 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
     //   setStudioFocus()
     //   e.preventDefault();
     // });
-    Mousetrap.bind("s s", () => formik.handleSubmit());
+    Mousetrap.bind("s s", () => {
+      if (formik.dirty) {
+        formik.submitForm();
+      }
+    });
 
     return () => {
       // Mousetrap.unbind("u");
@@ -180,6 +167,17 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
       // image is a base64 string
       formik.setFieldValue("back_image", state.back_image);
     }
+  }
+
+  async function onSave(input: InputValues) {
+    setIsLoading(true);
+    try {
+      await onSubmit(input);
+      formik.resetForm();
+    } catch (e) {
+      Toast.error(e);
+    }
+    setIsLoading(false);
   }
 
   async function onScrapeMovieURL() {
@@ -337,10 +335,10 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
   function renderTextField(field: string, title: string, placeholder?: string) {
     return (
       <Form.Group controlId={field} as={Row}>
-        {FormUtils.renderLabel({
-          title,
-        })}
-        <Col xs={9}>
+        <Form.Label column xs={labelXS} xl={labelXL}>
+          <FormattedMessage id={title} />
+        </Form.Label>
+        <Col xs={fieldXS} xl={fieldXL}>
           <Form.Control
             className="text-input"
             placeholder={placeholder ?? title}
@@ -373,16 +371,17 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
           // Check if it's a redirect after movie creation
           if (action === "PUSH" && location.pathname.startsWith("/movies/"))
             return true;
-          return intl.formatMessage({ id: "dialogs.unsaved_changes" });
+
+          return handleUnsavedChanges(intl, "movies", movie.id)(location);
         }}
       />
 
       <Form noValidate onSubmit={formik.handleSubmit} id="movie-edit">
         <Form.Group controlId="name" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "name" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="name" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <Form.Control
               className="text-input"
               placeholder={intl.formatMessage({ id: "name" })}
@@ -398,10 +397,10 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
         {renderTextField("aliases", intl.formatMessage({ id: "aliases" }))}
 
         <Form.Group controlId="duration" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "duration" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="duration" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <DurationInput
               numericValue={formik.values.duration ?? undefined}
               onValueChange={(valueAsNumber) => {
@@ -412,10 +411,10 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
         </Form.Group>
 
         <Form.Group controlId="date" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "date" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="date" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <DateInput
               value={formik.values.date}
               onValueChange={(value) => formik.setFieldValue("date", value)}
@@ -425,10 +424,10 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
         </Form.Group>
 
         <Form.Group controlId="studio" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "studio" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="studio" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <StudioSelect
               onSelect={(items) =>
                 formik.setFieldValue(
@@ -443,24 +442,11 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
 
         {renderTextField("director", intl.formatMessage({ id: "director" }))}
 
-        <Form.Group controlId="rating" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "rating" }),
-          })}
-          <Col xs={9}>
-            <RatingSystem
-              value={formik.values.rating100 ?? undefined}
-              onSetRating={(value) =>
-                formik.setFieldValue("rating100", value ?? null)
-              }
-            />
-          </Col>
-        </Form.Group>
         <Form.Group controlId="url" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "url" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="url" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <URLField
               {...formik.getFieldProps("url")}
               onScrapeClick={onScrapeMovieURL}
@@ -470,10 +456,10 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
         </Form.Group>
 
         <Form.Group controlId="synopsis" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "synopsis" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="synopsis" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <Form.Control
               as="textarea"
               className="text-input"
@@ -487,8 +473,9 @@ export const MovieEditPanel: React.FC<IMovieEditPanel> = ({
       <DetailsEditNavbar
         objectName={movie?.name ?? intl.formatMessage({ id: "movie" })}
         isNew={isNew}
+        classNames="col-xl-9 mt-3"
         isEditing={isEditing}
-        onToggleEdit={onCancelEditing}
+        onToggleEdit={onCancel}
         onSave={formik.handleSubmit}
         saveDisabled={(!isNew && !formik.dirty) || !isEqual(formik.errors, {})}
         onImageChange={onFrontImageChange}

@@ -153,9 +153,7 @@ export function makeItemList<T extends QueryResult, E extends IDataItem>({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [lastClickedId, setLastClickedId] = useState<string>();
 
-    const [editingCriterion, setEditingCriterion] = useState<
-      string | undefined
-    >();
+    const [editingCriterion, setEditingCriterion] = useState<string>();
     const [showEditFilter, setShowEditFilter] = useState(false);
 
     const result = useResult(filter);
@@ -193,7 +191,13 @@ export function makeItemList<T extends QueryResult, E extends IDataItem>({
 
     // set up hotkeys
     useEffect(() => {
-      Mousetrap.bind("f", () => setShowEditFilter(true));
+      Mousetrap.bind("f", (e) => {
+        setShowEditFilter(true);
+        // prevent default behavior of typing f in a text field
+        // otherwise the filter dialog closes, the query field is focused and
+        // f is typed.
+        e.preventDefault();
+      });
 
       return () => {
         Mousetrap.unbind("f");
@@ -460,7 +464,7 @@ export function makeItemList<T extends QueryResult, E extends IDataItem>({
     }
 
     return (
-      <div>
+      <div className="item-list-container">
         <ButtonToolbar className="justify-content-center">
           <ListFilter
             onFilterUpdate={updateFilter}
@@ -695,7 +699,15 @@ export function makeItemList<T extends QueryResult, E extends IDataItem>({
         const newFilter = cloneDeep(filter);
         newFilter.currentPage = page;
         updateFilter(newFilter);
-        window.scrollTo(0, 0);
+
+        // if the current page has a detail-header, then
+        // scroll up relative to that rather than 0, 0
+        const detailHeader = document.querySelector(".detail-header");
+        if (detailHeader) {
+          window.scrollTo(0, detailHeader.scrollHeight - 50);
+        } else {
+          window.scrollTo(0, 0);
+        }
       },
       [filter, updateFilter]
     );

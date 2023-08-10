@@ -96,17 +96,13 @@ const FieldOptionsEditor: React.FC<IFieldOptionsEditor> = ({
       });
     }
 
-    if (!localOptions) {
-      return <></>;
-    }
-
     return (
       <Form.Group>
         {allowSetDefault ? (
           <Form.Check
             type="radio"
             id={`${field}-strategy-default`}
-            checked={localOptions.strategy === undefined}
+            checked={strategy === undefined}
             onChange={() =>
               setLocalOptions({
                 ...localOptions,
@@ -122,7 +118,7 @@ const FieldOptionsEditor: React.FC<IFieldOptionsEditor> = ({
             type="radio"
             key={f[0]}
             id={`${field}-strategy-${f[0]}`}
-            checked={localOptions.strategy === f[1]}
+            checked={strategy === f[1]}
             onChange={() =>
               setLocalOptions({
                 ...localOptions,
@@ -168,7 +164,9 @@ const FieldOptionsEditor: React.FC<IFieldOptionsEditor> = ({
         (f) => f.field === localOptions.field
       )?.createMissing;
 
-      if (localOptions.strategy === undefined) {
+      // if allowSetDefault is false, then strategy is considered merge
+      // if its true, then its using the default value and should not be shown here
+      if (localOptions.strategy === undefined && allowSetDefault) {
         return;
       }
 
@@ -192,19 +190,24 @@ const FieldOptionsEditor: React.FC<IFieldOptionsEditor> = ({
       return;
     }
 
+    const localOptionsCopy = { ...localOptions };
+    if (localOptionsCopy.strategy === undefined && !allowSetDefault) {
+      localOptionsCopy.strategy = GQL.IdentifyFieldStrategy.Merge;
+    }
+
     // send null if strategy is undefined
-    if (localOptions.strategy === undefined) {
+    if (localOptionsCopy.strategy === undefined) {
       editOptions(null);
       resetOptions();
     } else {
-      let { createMissing } = localOptions;
+      let { createMissing } = localOptionsCopy;
       if (createMissing === undefined && !allowSetDefault) {
         createMissing = false;
       }
 
       editOptions({
-        ...localOptions,
-        strategy: localOptions.strategy,
+        ...localOptionsCopy,
+        strategy: localOptionsCopy.strategy,
         createMissing,
       });
     }
@@ -313,7 +316,7 @@ export const FieldOptionsList: React.FC<IFieldOptionsList> = ({
   }
 
   return (
-    <Form.Group className="scraper-sources">
+    <Form.Group className="scraper-sources mt-3">
       <h5>
         <FormattedMessage id="config.tasks.identify.field_options" />
       </h5>

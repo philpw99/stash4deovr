@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -11,6 +12,7 @@ import (
 	"sort"
 
 	"github.com/lucasb-eyer/go-colorful"
+	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
 )
 
@@ -73,10 +75,11 @@ func (g *InteractiveHeatmapSpeedGenerator) Generate(funscriptPath string, heatma
 		return fmt.Errorf("no valid actions in funscript")
 	}
 
+	sceneDurationMilli := int64(sceneDuration * 1000)
 	g.Funscript = funscript
 	g.Funscript.UpdateIntensityAndSpeed()
 
-	err = g.RenderHeatmap(heatmapPath)
+	err = g.RenderHeatmap(heatmapPath, sceneDurationMilli)
 
 	if err != nil {
 		return err
@@ -155,8 +158,8 @@ func (funscript *Script) UpdateIntensityAndSpeed() {
 }
 
 // funscript needs to have intensity updated first
-func (g *InteractiveHeatmapSpeedGenerator) RenderHeatmap(heatmapPath string) error {
-	gradient := g.Funscript.getGradientTable(g.NumSegments)
+func (g *InteractiveHeatmapSpeedGenerator) RenderHeatmap(heatmapPath string, sceneDurationMilli int64) error {
+	gradient := g.Funscript.getGradientTable(g.NumSegments, sceneDurationMilli)
 
 	img := image.NewRGBA(image.Rect(0, 0, g.Width, g.Height))
 	for x := 0; x < g.Width; x++ {
@@ -179,7 +182,7 @@ func (g *InteractiveHeatmapSpeedGenerator) RenderHeatmap(heatmapPath string) err
 	}
 
 	// add 10 minute marks
-	maxts := g.Funscript.Actions[len(g.Funscript.Actions)-1].At
+	maxts := sceneDurationMilli
 	const tick = 600000
 	var ts int64 = tick
 	c, _ := colorful.Hex("#000000")
@@ -242,7 +245,7 @@ func (gt GradientTable) GetYRange(t float64) [2]float64 {
 	return gt[len(gt)-1].YRange
 }
 
-func (funscript Script) getGradientTable(numSegments int) GradientTable {
+func (funscript Script) getGradientTable(numSegments int, sceneDurationMilli int64) GradientTable {
 	const windowSize = 15
 	const backfillThreshold = 500
 
@@ -255,7 +258,7 @@ func (funscript Script) getGradientTable(numSegments int) GradientTable {
 	gradient := make(GradientTable, numSegments)
 	posList := []int{}
 
-	maxts := funscript.Actions[len(funscript.Actions)-1].At
+	maxts := sceneDurationMilli
 
 	for _, a := range funscript.Actions {
 		posList = append(posList, a.Pos)
@@ -363,4 +366,63 @@ func getSegmentColor(intensity float64) colorful.Color {
 	}
 
 	return c
+}
+
+func LoadFunscriptData(path string) (Script, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Script{}, err
+	}
+
+	var funscript Script
+	err = json.Unmarshal(data, &funscript)
+	if err != nil {
+		return Script{}, err
+	}
+
+	if funscript.Actions == nil {
+		return Script{}, fmt.Errorf("actions list missing in %s", path)
+	}
+
+	sort.SliceStable(funscript.Actions, func(i, j int) bool { return funscript.Actions[i].At < funscript.Actions[j].At })
+
+	return funscript, nil
+}
+
+func convertRange(value int, fromLow int, fromHigh int, toLow int, toHigh int) int {
+	return ((value-fromLow)*(toHigh-toLow))/(fromHigh-fromLow) + toLow
+}
+
+func ConvertFunscriptToCSV(funscriptPath string) ([]byte, error) {
+	funscript, err := LoadFunscriptData(funscriptPath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var buffer bytes.Buffer
+	for _, action := range funscript.Actions {
+		pos := action.Pos
+
+		if funscript.Inverted {
+			pos = convertRange(pos, 0, 100, 100, 0)
+		}
+
+		if funscript.Range > 0 {
+			pos = convertRange(pos, 0, funscript.Range, 0, 100)
+		}
+
+		buffer.WriteString(fmt.Sprintf("%d,%d\r\n", action.At, pos))
+	}
+	return buffer.Bytes(), nil
+}
+
+func ConvertFunscriptToCSVFile(funscriptPath string, csvPath string) error {
+	csvBytes, err := ConvertFunscriptToCSV(funscriptPath)
+
+	if err != nil {
+		return err
+	}
+
+	return fsutil.WriteFile(csvPath, csvBytes)
 }

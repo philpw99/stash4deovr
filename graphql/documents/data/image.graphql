@@ -15,6 +15,7 @@ fragment ImageData on Image {
 
   paths {
     thumbnail
+    preview
     image
   }
 
@@ -25,12 +26,16 @@ fragment ImageData on Image {
   studio {
     ...SlimStudioData
   }
-  
+
   tags {
     ...SlimTagData
   }
 
   performers {
     ...PerformerData
+  }
+
+  visual_files {
+    ...VisualFileData
   }
 }

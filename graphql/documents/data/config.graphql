@@ -25,6 +25,7 @@ fragment ConfigGeneralData on ConfigGeneralResult {
   maxTranscodeSize
   maxStreamingTranscodeSize
   writeImageThumbnails
+  createImageClipsFromVideos
   apiKey
   username
   password
@@ -89,9 +90,11 @@ fragment ConfigInterfaceData on ConfigInterfaceResult {
     performer
     tag
     studio
+    movie
   }
   handyKey
   funscriptOffset
+  useStashHostedFunscript
 }
 
 fragment ConfigDLNAData on ConfigDLNAResult {
@@ -99,6 +102,7 @@ fragment ConfigDLNAData on ConfigDLNAResult {
   enabled
   whitelistedIPs
   interfaces
+  videoSortOrder
 }
 
 fragment ConfigScrapingData on ConfigScrapingResult {
@@ -121,6 +125,10 @@ fragment IdentifyMetadataOptionsData on IdentifyMetadataOptions {
   setCoverImage
   setOrganized
   includeMalePerformers
+  skipMultipleMatches
+  skipMultipleMatchTag
+  skipSingleNamePerformers
+  skipSingleNamePerformerTag
 }
 
 fragment ScraperSourceData on ScraperSource {
@@ -139,8 +147,9 @@ fragment ConfigDefaultSettingsData on ConfigDefaultSettingsResult {
     scanGenerateSprites
     scanGeneratePhashes
     scanGenerateThumbnails
+    scanGenerateClipPreviews
   }
-  
+
   identify {
     sources {
       source {
@@ -179,6 +188,7 @@ fragment ConfigDefaultSettingsData on ConfigDefaultSettingsResult {
     transcodes
     phashes
     interactiveHeatmapsSpeeds
+    clipPreviews
   }
 
   deleteFile

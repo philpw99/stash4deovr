@@ -1,27 +1,26 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
 import Mousetrap from "mousetrap";
 import { Icon } from "src/components/Shared/Icon";
+import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { StudioSelect } from "src/components/Shared/Select";
 import { DetailsEditNavbar } from "src/components/Shared/DetailsEditNavbar";
 import { Button, Form, Col, Row } from "react-bootstrap";
-import FormUtils from "src/utils/form";
 import ImageUtils from "src/utils/image";
 import { getStashIDs } from "src/utils/stashIds";
-import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import { useFormik } from "formik";
 import { Prompt } from "react-router-dom";
 import { StringListInput } from "../../Shared/StringListInput";
 import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
-import { useRatingKeybinds } from "src/hooks/keybinds";
-import { ConfigurationContext } from "src/hooks/Config";
 import isEqual from "lodash-es/isEqual";
+import { useToast } from "src/hooks/Toast";
+import { handleUnsavedChanges } from "src/utils/navigation";
 
 interface IStudioEditPanel {
   studio: Partial<GQL.StudioDataFragment>;
-  onSubmit: (studio: GQL.StudioCreateInput) => void;
+  onSubmit: (studio: GQL.StudioCreateInput) => Promise<void>;
   onCancel: () => void;
   onDelete: () => void;
   setImage: (image?: string | null) => void;
@@ -37,16 +36,23 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
   setEncodingImage,
 }) => {
   const intl = useIntl();
+  const Toast = useToast();
 
   const isNew = studio.id === undefined;
-  const { configuration } = React.useContext(ConfigurationContext);
+
+  const labelXS = 3;
+  const labelXL = 2;
+  const fieldXS = 9;
+  const fieldXL = 7;
+
+  // Network state
+  const [isLoading, setIsLoading] = useState(false);
 
   const schema = yup.object({
     name: yup.string().required(),
     url: yup.string().ensure(),
     details: yup.string().ensure(),
     parent_id: yup.string().required().nullable(),
-    rating100: yup.number().nullable().defined(),
     aliases: yup
       .array(yup.string().required())
       .defined()
@@ -73,11 +79,11 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
   });
 
   const initialValues = {
+    id: studio.id,
     name: studio.name ?? "",
     url: studio.url ?? "",
     details: studio.details ?? "",
     parent_id: studio.parent_studio?.id ?? null,
-    rating100: studio.rating100 ?? null,
     aliases: studio.aliases ?? [],
     ignore_auto_tag: studio.ignore_auto_tag ?? false,
     stash_ids: getStashIDs(studio.stash_ids),
@@ -89,7 +95,7 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
     initialValues,
     enableReinitialize: true,
     validationSchema: schema,
-    onSubmit: (values) => onSubmit(values),
+    onSubmit: (values) => onSave(values),
   });
 
   const encodingImage = ImageUtils.usePasteImage((imageData) =>
@@ -104,29 +110,29 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
     setEncodingImage(encodingImage);
   }, [setEncodingImage, encodingImage]);
 
-  function setRating(v: number) {
-    formik.setFieldValue("rating100", v);
-  }
-
-  useRatingKeybinds(
-    true,
-    configuration?.ui?.ratingSystemOptions?.type,
-    setRating
-  );
-
-  function onCancelEditing() {
-    setImage(undefined);
-    onCancel?.();
-  }
-
   // set up hotkeys
   useEffect(() => {
-    Mousetrap.bind("s s", () => formik.handleSubmit());
+    Mousetrap.bind("s s", () => {
+      if (formik.dirty) {
+        formik.submitForm();
+      }
+    });
 
     return () => {
       Mousetrap.unbind("s s");
     };
   });
+
+  async function onSave(input: InputValues) {
+    setIsLoading(true);
+    try {
+      await onSubmit(input);
+      formik.resetForm();
+    } catch (e) {
+      Toast.error(e);
+    }
+    setIsLoading(false);
+  }
 
   function onImageLoad(imageData: string | null) {
     formik.setFieldValue("image", imageData);
@@ -153,8 +159,10 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
 
     return (
       <Row>
-        <Form.Label column>StashIDs</Form.Label>
-        <Col xs={9}>
+        <Form.Label column xs={labelXS} xl={labelXL}>
+          {intl.formatMessage({ id: "stash_ids" })}
+        </Form.Label>
+        <Col xs={fieldXS} xl={fieldXL}>
           <ul className="pl-0">
             {formik.values.stash_ids.map((stashID) => {
               const base = stashID.endpoint.match(/https?:\/\/.*?\//)?.[0];
@@ -200,6 +208,8 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
     : undefined;
   const aliasErrorIdx = aliasErrors?.split(" ").map((e) => parseInt(e));
 
+  if (isLoading) return <LoadingIndicator />;
+
   return (
     <>
       <Prompt
@@ -208,16 +218,17 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
           // Check if it's a redirect after studio creation
           if (action === "PUSH" && location.pathname.startsWith("/studios/"))
             return true;
-          return intl.formatMessage({ id: "dialogs.unsaved_changes" });
+
+          return handleUnsavedChanges(intl, "studios", studio.id)(location);
         }}
       />
 
       <Form noValidate onSubmit={formik.handleSubmit} id="studio-edit">
         <Form.Group controlId="name" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "name" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="name" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <Form.Control
               className="text-input"
               {...formik.getFieldProps("name")}
@@ -229,11 +240,25 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
           </Col>
         </Form.Group>
 
+        <Form.Group controlId="aliases" as={Row}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="aliases" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
+            <StringListInput
+              value={formik.values.aliases ?? []}
+              setValue={(value) => formik.setFieldValue("aliases", value)}
+              errors={aliasErrorMsg}
+              errorIdx={aliasErrorIdx}
+            />
+          </Col>
+        </Form.Group>
+
         <Form.Group controlId="url" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "url" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="url" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <Form.Control
               className="text-input"
               {...formik.getFieldProps("url")}
@@ -246,10 +271,10 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
         </Form.Group>
 
         <Form.Group controlId="details" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "details" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="details" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <Form.Control
               as="textarea"
               className="text-input"
@@ -263,10 +288,10 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
         </Form.Group>
 
         <Form.Group controlId="parent_studio" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "parent_studios" }),
-          })}
-          <Col xs={9}>
+          <Form.Label column xs={labelXS} xl={labelXL}>
+            <FormattedMessage id="parent_studios" />
+          </Form.Label>
+          <Col xs={fieldXS} xl={fieldXL}>
             <StudioSelect
               onSelect={(items) =>
                 formik.setFieldValue(
@@ -280,44 +305,16 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
           </Col>
         </Form.Group>
 
-        <Form.Group controlId="rating" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "rating" }),
-          })}
-          <Col xs={9}>
-            <RatingSystem
-              value={formik.values.rating100 ?? undefined}
-              onSetRating={(value) =>
-                formik.setFieldValue("rating100", value ?? null)
-              }
-            />
-          </Col>
-        </Form.Group>
-
         {renderStashIDs()}
-
-        <Form.Group controlId="aliases" as={Row}>
-          <Form.Label column xs={3}>
-            <FormattedMessage id="aliases" />
-          </Form.Label>
-          <Col xs={9}>
-            <StringListInput
-              value={formik.values.aliases ?? []}
-              setValue={(value) => formik.setFieldValue("aliases", value)}
-              errors={aliasErrorMsg}
-              errorIdx={aliasErrorIdx}
-            />
-          </Col>
-        </Form.Group>
       </Form>
 
       <hr />
 
       <Form.Group controlId="ignore-auto-tag" as={Row}>
-        <Form.Label column xs={3}>
+        <Form.Label column xs={labelXS} xl={labelXL}>
           <FormattedMessage id="ignore_auto_tag" />
         </Form.Label>
-        <Col xs={9}>
+        <Col xs={fieldXS} xl={fieldXL}>
           <Form.Check
             {...formik.getFieldProps({
               name: "ignore_auto_tag",
@@ -329,9 +326,10 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
 
       <DetailsEditNavbar
         objectName={studio?.name ?? intl.formatMessage({ id: "studio" })}
+        classNames="col-xl-9 mt-3"
         isNew={isNew}
         isEditing
-        onToggleEdit={onCancelEditing}
+        onToggleEdit={onCancel}
         onSave={formik.handleSubmit}
         saveDisabled={(!isNew && !formik.dirty) || !isEqual(formik.errors, {})}
         onImageChange={onImageChange}

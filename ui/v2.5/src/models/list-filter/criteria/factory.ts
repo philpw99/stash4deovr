@@ -44,6 +44,7 @@ import {
   TagsCriterionOption,
 } from "./tags";
 import { GenderCriterion } from "./gender";
+import { CircumcisedCriterion } from "./circumcised";
 import { MoviesCriterionOption } from "./movies";
 import { GalleriesCriterion } from "./galleries";
 import { CriterionType } from "../types";
@@ -65,6 +66,9 @@ export function makeCriteria(
     case "none":
       return new NoneCriterion();
     case "name":
+      return new StringCriterion(
+        new MandatoryStringCriterionOption(type, type)
+      );
     case "path":
       return new StringCriterion(new PathCriterionOption(type, type));
     case "checksum":
@@ -103,6 +107,10 @@ export function makeCriteria(
       return new ResolutionCriterion();
     case "average_resolution":
       return new AverageResolutionCriterion();
+    case "video_codec":
+      return new StringCriterion(new StringCriterionOption(type, type));
+    case "audio_codec":
+      return new StringCriterion(new StringCriterionOption(type, type));
     case "resume_time":
     case "duration":
     case "play_duration":
@@ -155,12 +163,16 @@ export function makeCriteria(
     case "death_year":
     case "weight":
       return new NumberCriterion(new NumberCriterionOption(type, type));
+    case "penis_length":
+      return new NumberCriterion(new NumberCriterionOption(type, type));
     case "age":
       return new NumberCriterion(
         new MandatoryNumberCriterionOption(type, type)
       );
     case "gender":
       return new GenderCriterion();
+    case "circumcised":
+      return new CircumcisedCriterion();
     case "sceneChecksum":
     case "galleryChecksum":
       return new StringCriterion(

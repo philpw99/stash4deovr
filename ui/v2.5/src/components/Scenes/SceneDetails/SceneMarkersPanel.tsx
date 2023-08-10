@@ -3,7 +3,7 @@ import { Button } from "react-bootstrap";
 import { FormattedMessage } from "react-intl";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
-import { WallPanel } from "src/components/Wall/WallPanel";
+import { MarkerWallPanel } from "src/components/Wall/WallPanel";
 import { PrimaryTags } from "./PrimaryTags";
 import { SceneMarkerForm } from "./SceneMarkerForm";
 
@@ -13,13 +13,13 @@ interface ISceneMarkersPanelProps {
   onClickMarker: (marker: GQL.SceneMarkerDataFragment) => void;
 }
 
-export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = (
-  props: ISceneMarkersPanelProps
-) => {
+export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = ({
+  sceneId,
+  isVisible,
+  onClickMarker,
+}) => {
   const { data, loading } = GQL.useFindSceneMarkerTagsQuery({
-    variables: {
-      id: props.sceneId,
-    },
+    variables: { id: sceneId },
   });
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [editingMarker, setEditingMarker] =
@@ -27,13 +27,13 @@ export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = (
 
   // set up hotkeys
   useEffect(() => {
-    if (props.isVisible) {
-      Mousetrap.bind("n", () => onOpenEditor());
+    if (!isVisible) return;
 
-      return () => {
-        Mousetrap.unbind("n");
-      };
-    }
+    Mousetrap.bind("n", () => onOpenEditor());
+
+    return () => {
+      Mousetrap.unbind("n");
+    };
   });
 
   if (loading) return null;
@@ -41,10 +41,6 @@ export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = (
   function onOpenEditor(marker?: GQL.SceneMarkerDataFragment) {
     setIsEditorOpen(true);
     setEditingMarker(marker ?? undefined);
-  }
-
-  function onClickMarker(marker: GQL.SceneMarkerDataFragment) {
-    props.onClickMarker(marker);
   }
 
   const closeEditor = () => {
@@ -55,8 +51,8 @@ export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = (
   if (isEditorOpen)
     return (
       <SceneMarkerForm
-        sceneID={props.sceneId}
-        editingMarker={editingMarker}
+        sceneID={sceneId}
+        marker={editingMarker}
         onClose={closeEditor}
       />
     );
@@ -77,11 +73,12 @@ export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = (
           onEdit={onOpenEditor}
         />
       </div>
-      <WallPanel
-        sceneMarkers={sceneMarkers}
-        clickHandler={(marker) => {
+      <MarkerWallPanel
+        markers={sceneMarkers}
+        clickHandler={(e, marker) => {
+          e.preventDefault();
           window.scrollTo(0, 0);
-          onClickMarker(marker as GQL.SceneMarkerDataFragment);
+          onClickMarker(marker);
         }}
       />
     </div>

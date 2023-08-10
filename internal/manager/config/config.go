@@ -23,8 +23,6 @@ import (
 	"github.com/stashapp/stash/pkg/models/paths"
 )
 
-var officialBuild string
-
 const (
 	Stash               = "stash"
 	Cache               = "cache"
@@ -95,6 +93,9 @@ const (
 
 	WriteImageThumbnails        = "write_image_thumbnails"
 	writeImageThumbnailsDefault = true
+
+	CreateImageClipsFromVideos        = "create_image_clip_from_videos"
+	createImageClipsFromVideosDefault = false
 
 	Host        = "host"
 	hostDefault = "0.0.0.0"
@@ -188,9 +189,12 @@ const (
 	DisableDropdownCreatePerformer = "disable_dropdown_create.performer"
 	DisableDropdownCreateStudio    = "disable_dropdown_create.studio"
 	DisableDropdownCreateTag       = "disable_dropdown_create.tag"
+	DisableDropdownCreateMovie     = "disable_dropdown_create.movie"
 
-	HandyKey        = "handy_key"
-	FunscriptOffset = "funscript_offset"
+	HandyKey                       = "handy_key"
+	FunscriptOffset                = "funscript_offset"
+	UseStashHostedFunscript        = "use_stash_hosted_funscript"
+	useStashHostedFunscriptDefault = false
 
 	DrawFunscriptHeatmapRange        = "draw_funscript_heatmap_range"
 	drawFunscriptHeatmapRangeDefault = true
@@ -209,6 +213,9 @@ const (
 	DLNADefaultEnabled     = "dlna.default_enabled"
 	DLNADefaultIPWhitelist = "dlna.default_whitelist"
 	DLNAInterfaces         = "dlna.interfaces"
+
+	DLNAVideoSortOrder        = "dlna.video_sort_order"
+	dlnaVideoSortOrderDefault = "title"
 
 	// Logging options
 	LogFile          = "logFile"
@@ -265,10 +272,6 @@ type StashBoxError struct {
 func (s *StashBoxError) Error() string {
 	// "Stash-box" is a proper noun and is therefore capitcalized
 	return "Stash-box: " + s.msg
-}
-
-func IsOfficialBuild() bool {
-	return officialBuild == "true"
 }
 
 type Instance struct {
@@ -862,6 +865,10 @@ func (i *Instance) IsWriteImageThumbnails() bool {
 	return i.getBool(WriteImageThumbnails)
 }
 
+func (i *Instance) IsCreateImageClipsFromVideos() bool {
+	return i.getBool(CreateImageClipsFromVideos)
+}
+
 func (i *Instance) GetAPIKey() string {
 	return i.getString(ApiKey)
 }
@@ -1090,6 +1097,7 @@ func (i *Instance) GetDisableDropdownCreate() *ConfigDisableDropdownCreate {
 		Performer: i.getBool(DisableDropdownCreatePerformer),
 		Studio:    i.getBool(DisableDropdownCreateStudio),
 		Tag:       i.getBool(DisableDropdownCreateTag),
+		Movie:     i.getBool(DisableDropdownCreateMovie),
 	}
 }
 
@@ -1250,6 +1258,10 @@ func (i *Instance) GetFunscriptOffset() int {
 	return i.getInt(FunscriptOffset)
 }
 
+func (i *Instance) GetUseStashHostedFunscript() bool {
+	return i.getBoolDefault(UseStashHostedFunscript, useStashHostedFunscriptDefault)
+}
+
 func (i *Instance) GetDeleteFileDefault() bool {
 	return i.getBool(DeleteFileDefault)
 }
@@ -1368,6 +1380,17 @@ func (i *Instance) GetDLNADefaultIPWhitelist() []string {
 // empty, runs on all interfaces.
 func (i *Instance) GetDLNAInterfaces() []string {
 	return i.getStringSlice(DLNAInterfaces)
+}
+
+// GetVideoSortOrder returns the sort order to display videos. If
+// empty, videos will be sorted by titles.
+func (i *Instance) GetVideoSortOrder() string {
+	ret := i.getString(DLNAVideoSortOrder)
+	if ret == "" {
+		ret = dlnaVideoSortOrderDefault
+	}
+
+	return ret
 }
 
 // GetLogFile returns the filename of the file to output logs to.
@@ -1499,6 +1522,7 @@ func (i *Instance) setDefaultValues(write bool) error {
 	i.main.SetDefault(ThemeColor, DefaultThemeColor)
 
 	i.main.SetDefault(WriteImageThumbnails, writeImageThumbnailsDefault)
+	i.main.SetDefault(CreateImageClipsFromVideos, createImageClipsFromVideosDefault)
 
 	i.main.SetDefault(Database, defaultDatabaseFilePath)
 

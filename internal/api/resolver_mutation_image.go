@@ -10,6 +10,7 @@ import (
 	"github.com/stashapp/stash/pkg/image"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/plugin"
+	"github.com/stashapp/stash/pkg/sliceutil/intslice"
 	"github.com/stashapp/stash/pkg/sliceutil/stringslice"
 	"github.com/stashapp/stash/pkg/utils"
 )
@@ -86,7 +87,6 @@ func (r *mutationResolver) ImagesUpdate(ctx context.Context, input []*ImageUpdat
 }
 
 func (r *mutationResolver) imageUpdate(ctx context.Context, input ImageUpdateInput, translator changesetTranslator) (*models.Image, error) {
-	// Populate image from the input
 	imageID, err := strconv.Atoi(input.ID)
 	if err != nil {
 		return nil, err
@@ -98,14 +98,19 @@ func (r *mutationResolver) imageUpdate(ctx context.Context, input ImageUpdateInp
 	}
 
 	if i == nil {
-		return nil, fmt.Errorf("image not found %d", imageID)
+		return nil, fmt.Errorf("image with id %d not found", imageID)
 	}
 
+	// Populate image from the input
 	updatedImage := models.NewImagePartial()
+
 	updatedImage.Title = translator.optionalString(input.Title, "title")
 	updatedImage.Rating = translator.ratingConversionOptional(input.Rating, input.Rating100)
 	updatedImage.URL = translator.optionalString(input.URL, "url")
-	updatedImage.Date = translator.optionalDate(input.Date, "date")
+	updatedImage.Date, err = translator.optionalDate(input.Date, "date")
+	if err != nil {
+		return nil, fmt.Errorf("converting date: %w", err)
+	}
 	updatedImage.StudioID, err = translator.optionalIntFromString(input.StudioID, "studio_id")
 	if err != nil {
 		return nil, fmt.Errorf("converting studio id: %w", err)
@@ -125,10 +130,10 @@ func (r *mutationResolver) imageUpdate(ctx context.Context, input ImageUpdateInp
 			return nil, err
 		}
 
-		// ensure that new primary file is associated with scene
-		var f *file.ImageFile
+		// ensure that new primary file is associated with image
+		var f file.File
 		for _, ff := range i.Files.List() {
-			if ff.ID == converted {
+			if ff.Base().ID == converted {
 				f = ff
 			}
 		}
@@ -137,6 +142,8 @@ func (r *mutationResolver) imageUpdate(ctx context.Context, input ImageUpdateInp
 			return nil, fmt.Errorf("file with id %d not associated with image", converted)
 		}
 	}
+
+	var updatedGalleryIDs []int
 
 	if translator.hasField("gallery_ids") {
 		updatedImage.GalleryIDs, err = translateUpdateIDs(input.GalleryIds, models.RelationshipUpdateModeSet)
@@ -152,6 +159,8 @@ func (r *mutationResolver) imageUpdate(ctx context.Context, input ImageUpdateInp
 		if err := r.galleryService.ValidateImageGalleryChange(ctx, i, *updatedImage.GalleryIDs); err != nil {
 			return nil, err
 		}
+
+		updatedGalleryIDs = updatedImage.GalleryIDs.ImpactedIDs(i.GalleryIDs.List())
 	}
 
 	if translator.hasField("performer_ids") {
@@ -174,6 +183,13 @@ func (r *mutationResolver) imageUpdate(ctx context.Context, input ImageUpdateInp
 		return nil, err
 	}
 
+	// #3759 - update all impacted galleries
+	for _, galleryID := range updatedGalleryIDs {
+		if err := r.galleryService.Updated(ctx, galleryID); err != nil {
+			return nil, fmt.Errorf("updating gallery %d: %w", galleryID, err)
+		}
+	}
+
 	return image, nil
 }
 
@@ -183,17 +199,20 @@ func (r *mutationResolver) BulkImageUpdate(ctx context.Context, input BulkImageU
 		return nil, err
 	}
 
-	// Populate image from the input
-	updatedImage := models.NewImagePartial()
-
 	translator := changesetTranslator{
 		inputMap: getUpdateInputMap(ctx),
 	}
 
+	// Populate image from the input
+	updatedImage := models.NewImagePartial()
+
 	updatedImage.Title = translator.optionalString(input.Title, "title")
 	updatedImage.Rating = translator.ratingConversionOptional(input.Rating, input.Rating100)
 	updatedImage.URL = translator.optionalString(input.URL, "url")
-	updatedImage.Date = translator.optionalDate(input.Date, "date")
+	updatedImage.Date, err = translator.optionalDate(input.Date, "date")
+	if err != nil {
+		return nil, fmt.Errorf("converting date: %w", err)
+	}
 	updatedImage.StudioID, err = translator.optionalIntFromString(input.StudioID, "studio_id")
 	if err != nil {
 		return nil, fmt.Errorf("converting studio id: %w", err)
@@ -221,8 +240,9 @@ func (r *mutationResolver) BulkImageUpdate(ctx context.Context, input BulkImageU
 		}
 	}
 
-	// Start the transaction and save the image marker
+	// Start the transaction and save the images
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		var updatedGalleryIDs []int
 		qb := r.repository.Image
 
 		for _, imageID := range imageIDs {
@@ -232,7 +252,7 @@ func (r *mutationResolver) BulkImageUpdate(ctx context.Context, input BulkImageU
 			}
 
 			if i == nil {
-				return fmt.Errorf("image not found %d", imageID)
+				return fmt.Errorf("image with id %d not found", imageID)
 			}
 
 			if updatedImage.GalleryIDs != nil {
@@ -244,6 +264,9 @@ func (r *mutationResolver) BulkImageUpdate(ctx context.Context, input BulkImageU
 				if err := r.galleryService.ValidateImageGalleryChange(ctx, i, *updatedImage.GalleryIDs); err != nil {
 					return err
 				}
+
+				thisUpdatedGalleryIDs := updatedImage.GalleryIDs.ImpactedIDs(i.GalleryIDs.List())
+				updatedGalleryIDs = intslice.IntAppendUniques(updatedGalleryIDs, thisUpdatedGalleryIDs)
 			}
 
 			image, err := qb.UpdatePartial(ctx, imageID, updatedImage)
@@ -252,6 +275,13 @@ func (r *mutationResolver) BulkImageUpdate(ctx context.Context, input BulkImageU
 			}
 
 			ret = append(ret, image)
+		}
+
+		// #3759 - update all impacted galleries
+		for _, galleryID := range updatedGalleryIDs {
+			if err := r.galleryService.Updated(ctx, galleryID); err != nil {
+				return fmt.Errorf("updating gallery %d: %w", galleryID, err)
+			}
 		}
 
 		return nil
