@@ -83,6 +83,7 @@ func (rs sceneRoutes) Routes() chi.Router {
 		r.Get("/scene_marker/{sceneMarkerId}/preview", rs.SceneMarkerPreview)
 		r.Get("/scene_marker/{sceneMarkerId}/screenshot", rs.SceneMarkerScreenshot)
 	})
+
 	r.Get("/{sceneHash}_thumbs.vtt", rs.VttThumbs)
 	r.Get("/{sceneHash}_sprite.jpg", rs.VttSprite)
 

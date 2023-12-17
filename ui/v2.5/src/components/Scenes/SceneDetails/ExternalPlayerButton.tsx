@@ -31,7 +31,7 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
   const { stream } = paths;
   const title = objectTitle(scene);
 
-  let url;
+  let url, url2;
   const streamURL = new URL(stream);
   if (isAndroid) {
     const scheme = streamURL.protocol.slice(0, -1);
@@ -51,6 +51,8 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
     // In all other cases.
 
     url = stream + "/org/" + encodeURIComponent(file.toString()); // like http://192.168.1.10:9999/scene/123/stream/org/file.mp4
+    url2 = url; // for now. Need to fix it for PlayA
+    streamURL.pathname = "/api/playa/v1/video/" + scene.id;
   }
 
   return (
@@ -59,8 +61,12 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
       variant="secondary"
       title={intl.formatMessage({ id: "actions.open_in_external_player" })}
     >
+      <a href={url2}>
+        PlayA&nbsp;&nbsp;
+        <Icon icon={faExternalLinkAlt} color="white" />
+      </a>
       <a href={url}>
-        Ext. Player&nbsp;&nbsp;
+        DeoVR&nbsp;&nbsp;
         <Icon icon={faExternalLinkAlt} color="white" />
       </a>
     </Button>
