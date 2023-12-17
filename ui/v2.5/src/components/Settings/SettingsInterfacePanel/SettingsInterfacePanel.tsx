@@ -13,8 +13,8 @@ import {
   SelectSetting,
   StringSetting,
 } from "../Inputs";
-import { SettingStateContext } from "../context";
-import DurationUtils from "src/utils/duration";
+import { useSettings } from "../context";
+import TextUtils from "src/utils/text";
 import * as GQL from "src/core/generated-graphql";
 import {
   imageLightboxDisplayModeIntlMap,
@@ -65,7 +65,7 @@ export const SettingsInterfacePanel: React.FC = () => {
     saveUI,
     loading,
     error,
-  } = React.useContext(SettingStateContext);
+  } = useSettings();
 
   const {
     interactive,
@@ -356,13 +356,20 @@ export const SettingsInterfacePanel: React.FC = () => {
           onChange={(v) => saveInterface({ maximumLoopDuration: v })}
           renderField={(value, setValue) => (
             <DurationInput
-              numericValue={value}
-              onValueChange={(duration) => setValue(duration ?? 0)}
+              value={value}
+              setValue={(duration) => setValue(duration ?? 0)}
             />
           )}
           renderValue={(v) => {
-            return <span>{DurationUtils.secondsToString(v ?? 0)}</span>;
+            return <span>{TextUtils.secondsToTimestamp(v ?? 0)}</span>;
           }}
+        />
+
+        <BooleanSetting
+          id="show-ab-loop"
+          headingID="config.ui.scene_player.options.show_ab_loop_controls"
+          checked={ui.showAbLoopControls ?? undefined}
+          onChange={(v) => saveUI({ showAbLoopControls: v })}
         />
       </SettingSection>
       <SettingSection headingID="config.ui.tag_panel.heading">

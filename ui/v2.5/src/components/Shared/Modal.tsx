@@ -1,19 +1,20 @@
 import React from "react";
 import { Button, Modal, Spinner, ModalProps } from "react-bootstrap";
+import { ButtonVariant } from "react-bootstrap/types";
 import { Icon } from "./Icon";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FormattedMessage } from "react-intl";
 
 interface IButton {
   text?: string;
-  variant?: "danger" | "primary" | "secondary";
+  variant?: ButtonVariant;
   onClick?: () => void;
 }
 
 interface IModal {
   show: boolean;
   onHide?: () => void;
-  header?: string;
+  header?: JSX.Element | string;
   icon?: IconDefinition;
   cancel?: IButton;
   accept?: IButton;
@@ -59,24 +60,6 @@ export const ModalComponent: React.FC<IModal> = ({
       <div>{leftFooterButtons}</div>
       <div>
         {footerButtons}
-        {cancel ? (
-          <Button
-            disabled={isRunning}
-            variant={cancel.variant ?? "primary"}
-            onClick={cancel.onClick}
-            className="ml-2"
-          >
-            {cancel.text ?? (
-              <FormattedMessage
-                id="actions.cancel"
-                defaultMessage="Cancel"
-                description="Cancels the current action and dismisses the modal."
-              />
-            )}
-          </Button>
-        ) : (
-          ""
-        )}
         <Button
           disabled={isRunning || disabled}
           variant={accept?.variant ?? "primary"}
@@ -95,6 +78,24 @@ export const ModalComponent: React.FC<IModal> = ({
             )
           )}
         </Button>
+        {cancel ? (
+          <Button
+            disabled={isRunning}
+            variant={cancel.variant ?? "primary"}
+            onClick={cancel.onClick}
+            className="ml-2"
+          >
+            {cancel.text ?? (
+              <FormattedMessage
+                id="actions.cancel"
+                defaultMessage="Cancel"
+                description="Cancels the current action and dismisses the modal."
+              />
+            )}
+          </Button>
+        ) : (
+          ""
+        )}
       </div>
     </Modal.Footer>
   </Modal>
