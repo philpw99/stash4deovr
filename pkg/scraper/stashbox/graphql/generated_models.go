@@ -88,8 +88,8 @@ type DraftEntity struct {
 	ID   *string `json:"id,omitempty"`
 }
 
-func (DraftEntity) IsSceneDraftTag()       {}
 func (DraftEntity) IsSceneDraftStudio()    {}
+func (DraftEntity) IsSceneDraftTag()       {}
 func (DraftEntity) IsSceneDraftPerformer() {}
 
 type DraftEntityInput struct {
@@ -339,7 +339,7 @@ type Performer struct {
 	Deleted         bool                `json:"deleted"`
 	Edits           []*Edit             `json:"edits,omitempty"`
 	SceneCount      int                 `json:"scene_count"`
-	OCounter        int                 `json:"o_counter"`
+	Scenes          []*Scene            `json:"scenes,omitempty"`
 	MergedIds       []string            `json:"merged_ids,omitempty"`
 	Studios         []*PerformerStudio  `json:"studios,omitempty"`
 	IsFavorite      bool                `json:"is_favorite"`
@@ -347,8 +347,8 @@ type Performer struct {
 	Updated         time.Time           `json:"updated"`
 }
 
-func (Performer) IsSceneDraftPerformer() {}
 func (Performer) IsEditTarget()          {}
+func (Performer) IsSceneDraftPerformer() {}
 
 type PerformerAppearance struct {
 	Performer *Performer `json:"performer,omitempty"`
@@ -884,8 +884,8 @@ type Studio struct {
 	Performers   *QueryPerformersResultType `json:"performers,omitempty"`
 }
 
-func (Studio) IsSceneDraftStudio() {}
 func (Studio) IsEditTarget()       {}
+func (Studio) IsSceneDraftStudio() {}
 
 type StudioCreateInput struct {
 	Name     string      `json:"name"`
@@ -962,8 +962,8 @@ type Tag struct {
 	Updated     time.Time    `json:"updated"`
 }
 
-func (Tag) IsSceneDraftTag() {}
 func (Tag) IsEditTarget()    {}
+func (Tag) IsSceneDraftTag() {}
 
 type TagCategory struct {
 	ID          string       `json:"id"`
@@ -1797,7 +1797,6 @@ const (
 	PerformerSortEnumName            PerformerSortEnum = "NAME"
 	PerformerSortEnumBirthdate       PerformerSortEnum = "BIRTHDATE"
 	PerformerSortEnumSceneCount      PerformerSortEnum = "SCENE_COUNT"
-	PerformerSortEnumOCounter        PerformerSortEnum = "O_COUNTER"
 	PerformerSortEnumCareerStartYear PerformerSortEnum = "CAREER_START_YEAR"
 	PerformerSortEnumDebut           PerformerSortEnum = "DEBUT"
 	PerformerSortEnumLastScene       PerformerSortEnum = "LAST_SCENE"
@@ -1809,7 +1808,6 @@ var AllPerformerSortEnum = []PerformerSortEnum{
 	PerformerSortEnumName,
 	PerformerSortEnumBirthdate,
 	PerformerSortEnumSceneCount,
-	PerformerSortEnumOCounter,
 	PerformerSortEnumCareerStartYear,
 	PerformerSortEnumDebut,
 	PerformerSortEnumLastScene,
@@ -1819,7 +1817,7 @@ var AllPerformerSortEnum = []PerformerSortEnum{
 
 func (e PerformerSortEnum) IsValid() bool {
 	switch e {
-	case PerformerSortEnumName, PerformerSortEnumBirthdate, PerformerSortEnumSceneCount, PerformerSortEnumOCounter, PerformerSortEnumCareerStartYear, PerformerSortEnumDebut, PerformerSortEnumCreatedAt, PerformerSortEnumUpdatedAt:
+	case PerformerSortEnumName, PerformerSortEnumBirthdate, PerformerSortEnumSceneCount, PerformerSortEnumCareerStartYear, PerformerSortEnumDebut, PerformerSortEnumLastScene, PerformerSortEnumCreatedAt, PerformerSortEnumUpdatedAt:
 		return true
 	}
 	return false
