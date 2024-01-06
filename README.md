@@ -18,6 +18,8 @@
 * You can tag videos and find them later.
 * Stash provides statistics about performers, tags, studios and more.
 
+Nothing.
+
 You can [watch a SFW demo video](https://vimeo.com/545323354) to see it in action.
 
 For further information you can consult the [documentation](https://docs.stashapp.cc) or [read the in-app manual](ui/v2.5/src/docs/en).
