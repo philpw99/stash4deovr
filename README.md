@@ -1,5 +1,9 @@
 # Stash
 
+## These are special builds for DeoVR
+You can open DeoVR and use the browser to open the Stash webpage, then click on "Open Ext." button to play the VR videos in DeoVR.
+It works both in https or http. It's the most reliable way to for DeoVR and Stash work together.
+
 [![Build](https://github.com/stashapp/stash/actions/workflows/build.yml/badge.svg?branch=develop&event=push)](https://github.com/stashapp/stash/actions/workflows/build.yml)
 [![Docker pulls](https://img.shields.io/docker/pulls/stashapp/stash.svg)](https://hub.docker.com/r/stashapp/stash 'DockerHub')
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/stashapp?logo=github)](https://github.com/sponsors/stashapp)
