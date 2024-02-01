@@ -82,11 +82,40 @@ func (rs sceneRoutes) Routes() chi.Router {
 		r.Get("/scene_marker/{sceneMarkerId}/stream", rs.SceneMarkerStream)
 		r.Get("/scene_marker/{sceneMarkerId}/preview", rs.SceneMarkerPreview)
 		r.Get("/scene_marker/{sceneMarkerId}/screenshot", rs.SceneMarkerScreenshot)
+
+		// Added
+		r.Get("/stream/org/{streamOrgFile}", rs.StreamOrgDirect)
 	})
 	r.Get("/{sceneHash}_thumbs.vtt", rs.VttThumbs)
 	r.Get("/{sceneHash}_sprite.jpg", rs.VttSprite)
 
 	return r
+}
+
+// Added:
+func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
+	scene := r.Context().Value(sceneKey).(*models.Scene)
+	// check if it's funscript
+	aStr := strings.Split(chi.URLParam(r, "streamOrgFile"), ".")
+	// aStr := strings.Split(r.RequestURI, ".")
+	if strings.ToLower(aStr[len(aStr)-1]) == "funscript" {
+		// it's a funscript request
+		rs.Funscript(w, r)
+		return
+	}
+
+	// return 404 if the scene does not have file
+
+	f := scene.Files.Primary()
+	if f == nil {
+		w.WriteHeader(http.StatusNotFound)
+		if _, err := w.Write([]byte("Primary file not found for streaming original file.")); err != nil {
+			logger.Warnf("[scene] error getting primary file for streaming original: $v", err)
+		}
+		return
+	}
+	// Also return 404 if the actual video file cannot be found
+	http.ServeFile(w, r, f.Path)
 }
 
 func (rs sceneRoutes) StreamDirect(w http.ResponseWriter, r *http.Request) {
