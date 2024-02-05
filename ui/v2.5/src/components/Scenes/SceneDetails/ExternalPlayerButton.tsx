@@ -18,11 +18,11 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
   const intl = useIntl();
   const alwaysShow = true; // Added
 
-  const { paths,files } = scene;
+  const { paths, files } = scene;
   const { path } = files[0];
   // Get file as the filename only
   // If path is undefined, file is empty string
-  const file = path?.split('/').pop()?.split('\\').pop()??'';
+  const file = path?.split("/").pop()?.split("\\").pop() ?? "";
 
   if (!paths || !paths.stream || (!isAndroid && !isAppleDevice && !alwaysShow))
     return <span />;
@@ -52,8 +52,14 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
     url = streamURL
       .toString()
       .replace(new RegExp(`^${streamURL.protocol}`), "vlc-x-callback:");
+<<<<<<< Updated upstream
   } else if (alwaysShow){
     // Added from here. In all other cases.
+=======
+  } else if (alwaysShow) {
+    // added from here
+    // In all other cases.
+>>>>>>> Stashed changes
     url = stream + "/org/" + encodeURIComponent(file); // like http://192.168.1.10:9999/scene/123/stream/org/file.mp4
     // added end.
   }
