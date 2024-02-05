@@ -8,16 +8,15 @@ import Select, {
   MenuListProps,
   GroupBase,
   OptionsOrGroups,
+  DropdownIndicatorProps,
 } from "react-select";
 import CreatableSelect from "react-select/creatable";
 
 import * as GQL from "src/core/generated-graphql";
 import {
-  useAllTagsForFilter,
   useAllMoviesForFilter,
   useAllStudiosForFilter,
   useMarkerStrings,
-  useTagCreate,
   useStudioCreate,
   useMovieCreate,
 } from "src/core/StashService";
@@ -27,11 +26,13 @@ import { ConfigurationContext } from "src/hooks/Config";
 import { useIntl } from "react-intl";
 import { objectTitle } from "src/core/files";
 import { galleryTitle } from "src/core/galleries";
-import { TagPopover } from "../Tags/TagPopover";
 import { defaultMaxOptionsShown, IUIConfig } from "src/core/config";
 import { useDebounce } from "src/hooks/debounce";
 import { Placement } from "react-bootstrap/esm/Overlay";
 import { PerformerIDSelect } from "../Performers/PerformerSelect";
+import { Icon } from "./Icon";
+import { faTableColumns } from "@fortawesome/free-solid-svg-icons";
+import { TagIDSelect } from "../Tags/TagSelect";
 
 export type SelectObject = {
   id: string;
@@ -723,146 +724,7 @@ export const MovieSelect: React.FC<IFilterProps> = (props) => {
 export const TagSelect: React.FC<
   IFilterProps & { excludeIds?: string[]; hoverPlacement?: Placement }
 > = (props) => {
-  const [tagAliases, setTagAliases] = useState<Record<string, string[]>>({});
-  const [allAliases, setAllAliases] = useState<string[]>([]);
-  const { data, loading } = useAllTagsForFilter();
-  const [createTag] = useTagCreate();
-  const intl = useIntl();
-  const placeholder =
-    props.noSelectionString ??
-    intl.formatMessage(
-      { id: "actions.select_entity" },
-      { entityType: intl.formatMessage({ id: props.isMulti ? "tags" : "tag" }) }
-    );
-
-  const { configuration } = React.useContext(ConfigurationContext);
-  const defaultCreatable =
-    !configuration?.interface.disableDropdownCreate.tag ?? true;
-
-  const exclude = useMemo(() => props.excludeIds ?? [], [props.excludeIds]);
-  const tags = useMemo(
-    () => (data?.allTags ?? []).filter((tag) => !exclude.includes(tag.id)),
-    [data?.allTags, exclude]
-  );
-
-  useEffect(() => {
-    // build the tag aliases map
-    const newAliases: Record<string, string[]> = {};
-    const newAll: string[] = [];
-    tags.forEach((t) => {
-      newAliases[t.id] = t.aliases;
-      newAll.push(...t.aliases);
-    });
-    setTagAliases(newAliases);
-    setAllAliases(newAll);
-  }, [tags]);
-
-  const TagOption: React.FC<OptionProps<Option, boolean>> = (optionProps) => {
-    const { inputValue } = optionProps.selectProps;
-
-    let thisOptionProps = optionProps;
-    if (
-      inputValue &&
-      !optionProps.label.toLowerCase().includes(inputValue.toLowerCase())
-    ) {
-      // must be alias
-      const newLabel = `${optionProps.data.label} (alias)`;
-      thisOptionProps = {
-        ...optionProps,
-        children: newLabel,
-      };
-    }
-
-    const id = optionProps.data.value;
-    const hide = (optionProps.data as Option & { __isNew__: boolean })
-      .__isNew__;
-
-    return (
-      <TagPopover id={id} hide={hide} placement={props.hoverPlacement}>
-        <reactSelectComponents.Option {...thisOptionProps} />
-      </TagPopover>
-    );
-  };
-
-  const filterOption = (option: Option, rawInput: string): boolean => {
-    if (!rawInput) {
-      return true;
-    }
-
-    const input = rawInput.toLowerCase();
-    const optionVal = option.label.toLowerCase();
-
-    if (optionVal.includes(input)) {
-      return true;
-    }
-
-    // search for tag aliases
-    const aliases = tagAliases[option.value];
-    // only match on alias if exact
-    if (aliases && aliases.some((a) => a.toLowerCase() === input)) {
-      return true;
-    }
-
-    return false;
-  };
-
-  const onCreate = async (name: string) => {
-    const result = await createTag({
-      variables: {
-        input: {
-          name,
-        },
-      },
-    });
-    return {
-      item: result.data!.tagCreate!,
-      message: intl.formatMessage(
-        { id: "toast.created_entity" },
-        { entity: intl.formatMessage({ id: "tag" }).toLocaleLowerCase() }
-      ),
-    };
-  };
-
-  const isValidNewOption = (
-    inputValue: string,
-    value: OnChangeValue<Option, boolean>,
-    options: OptionsOrGroups<Option, GroupBase<Option>>
-  ) => {
-    if (!inputValue) {
-      return false;
-    }
-
-    if (
-      (options as Options<Option>).some((o: Option) => {
-        return o.label.toLowerCase() === inputValue.toLowerCase();
-      })
-    ) {
-      return false;
-    }
-
-    if (allAliases.some((a) => a.toLowerCase() === inputValue.toLowerCase())) {
-      return false;
-    }
-
-    return true;
-  };
-
-  return (
-    <FilterSelectComponent
-      {...props}
-      filterOption={filterOption}
-      isValidNewOption={isValidNewOption}
-      components={{ Option: TagOption }}
-      isMulti={props.isMulti ?? false}
-      items={tags}
-      creatable={props.creatable ?? defaultCreatable}
-      type="tags"
-      placeholder={placeholder}
-      isLoading={loading}
-      onCreate={onCreate}
-      closeMenuOnSelect={!props.isMulti}
-    />
-  );
+  return <TagIDSelect {...props} />;
 };
 
 export const FilterSelect: React.FC<IFilterProps & ITypeProps> = (props) => {
@@ -975,6 +837,94 @@ export const ListSelect = <T extends {}>(props: IListSelect<T>) => {
         IndicatorSeparator: () => null,
         ...{ DropdownIndicator: () => null },
         ...{ MultiValueRemove: () => null },
+      }}
+    />
+  );
+};
+
+type DisableOption = Option & {
+  disabled?: boolean;
+};
+
+interface ICheckBoxSelectProps {
+  options: DisableOption[];
+  selectedOptions?: DisableOption[];
+  onChange: (item: OnChangeValue<DisableOption, true>) => void;
+}
+
+export const CheckBoxSelect: React.FC<ICheckBoxSelectProps> = ({
+  options,
+  selectedOptions,
+  onChange,
+}) => {
+  const Option = (props: OptionProps<DisableOption, true>) => (
+    <reactSelectComponents.Option {...props}>
+      <input
+        type="checkbox"
+        disabled={props.data.disabled}
+        checked={props.isSelected}
+        onChange={() => null}
+        className="mr-1"
+      />
+      <label>{props.label}</label>
+    </reactSelectComponents.Option>
+  );
+
+  const DropdownIndicator = (
+    props: DropdownIndicatorProps<DisableOption, true>
+  ) => (
+    <reactSelectComponents.DropdownIndicator {...props}>
+      <Icon icon={faTableColumns} className="column-select" />
+    </reactSelectComponents.DropdownIndicator>
+  );
+
+  return (
+    <Select
+      className="CheckBoxSelect"
+      options={options}
+      value={selectedOptions}
+      isMulti
+      closeMenuOnSelect={false}
+      hideSelectedOptions={false}
+      isSearchable={false}
+      isClearable={false}
+      components={{
+        DropdownIndicator,
+        Option,
+        ValueContainer: () => null,
+        IndicatorSeparator: () => null,
+      }}
+      onChange={onChange}
+      styles={{
+        control: (base) => ({
+          ...base,
+          height: "25px",
+          width: "25px",
+          backgroundColor: "none",
+          border: "none",
+          transition: "none",
+          cursor: "pointer",
+        }),
+        dropdownIndicator: (base) => ({
+          ...base,
+          color: "rgb(255, 255, 255)",
+          padding: "0",
+        }),
+        menu: (base) => ({
+          ...base,
+          backgroundColor: "rgb(57, 75, 89)",
+        }),
+        option: (base, fprops) => ({
+          ...base,
+          backgroundColor: fprops.isFocused
+            ? "rgb(37, 49, 58)"
+            : "rgb(57, 75, 89)",
+          padding: "0px 12px",
+        }),
+        menuList: (base) => ({
+          ...base,
+          position: "fixed",
+        }),
       }}
     />
   );
