@@ -25,9 +25,6 @@ export interface ICustomFilter extends ITypename {
   direction: SortDirectionEnum;
 }
 
-// NOTE: This value cannot be more defined, because the generated enum it depends upon is UpperCase, which leads to errors on saving
-export type PinnedFilters = Record<string, Array<string>>;
-
 export type FrontPageContent = ISavedFilterRow | ICustomFilter;
 
 export const defaultMaxOptionsShown = 200;
@@ -82,9 +79,13 @@ export interface IUIConfig {
   lastNoteSeen?: number;
 
   vrTag?: string;
-  pinnedFilters?: PinnedFilters;
+
+  pinnedFilters?: Record<string, string[]>;
+  tableColumns?: Record<string, string[]>;
 
   advancedMode?: boolean;
+
+  taskDefaults?: Record<string, {}>;
 }
 
 interface ISavedFilterRowBroken extends ISavedFilterRow {
@@ -99,9 +100,9 @@ type FrontPageContentBroken = ISavedFilterRowBroken | ICustomFilterBroken;
 
 // #4128: deal with incorrectly insensitivised keys (sortBy and savedFilterId)
 export function getFrontPageContent(
-  ui: IUIConfig
+  ui: IUIConfig | undefined
 ): FrontPageContent[] | undefined {
-  return (ui.frontPageContent as FrontPageContentBroken[] | undefined)?.map(
+  return (ui?.frontPageContent as FrontPageContentBroken[] | undefined)?.map(
     (content) => {
       switch (content.__typename) {
         case "SavedFilter":

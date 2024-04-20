@@ -394,6 +394,7 @@ type PerformerDestroyInput struct {
 type PerformerDraft struct {
 	ID              *string  `json:"id,omitempty"`
 	Name            string   `json:"name"`
+	Disambiguation  *string  `json:"disambiguation,omitempty"`
 	Aliases         *string  `json:"aliases,omitempty"`
 	Gender          *string  `json:"gender,omitempty"`
 	Birthdate       *string  `json:"birthdate,omitempty"`
@@ -416,6 +417,7 @@ func (PerformerDraft) IsDraftData() {}
 
 type PerformerDraftInput struct {
 	ID              *string         `json:"id,omitempty"`
+	Disambiguation  *string         `json:"disambiguation,omitempty"`
 	Name            string          `json:"name"`
 	Aliases         *string         `json:"aliases,omitempty"`
 	Gender          *string         `json:"gender,omitempty"`

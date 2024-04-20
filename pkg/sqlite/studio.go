@@ -36,6 +36,7 @@ type studioRow struct {
 	UpdatedAt Timestamp   `db:"updated_at"`
 	// expressed as 1-100
 	Rating        null.Int    `db:"rating"`
+	Favorite      bool        `db:"favorite"`
 	Details       zero.String `db:"details"`
 	IgnoreAutoTag bool        `db:"ignore_auto_tag"`
 
@@ -51,6 +52,7 @@ func (r *studioRow) fromStudio(o models.Studio) {
 	r.CreatedAt = Timestamp{Timestamp: o.CreatedAt}
 	r.UpdatedAt = Timestamp{Timestamp: o.UpdatedAt}
 	r.Rating = intFromPtr(o.Rating)
+	r.Favorite = o.Favorite
 	r.Details = zero.StringFrom(o.Details)
 	r.IgnoreAutoTag = o.IgnoreAutoTag
 }
@@ -64,6 +66,7 @@ func (r *studioRow) resolve() *models.Studio {
 		CreatedAt:     r.CreatedAt.Timestamp,
 		UpdatedAt:     r.UpdatedAt.Timestamp,
 		Rating:        nullIntPtr(r.Rating),
+		Favorite:      r.Favorite,
 		Details:       r.Details.String,
 		IgnoreAutoTag: r.IgnoreAutoTag,
 	}
@@ -82,6 +85,7 @@ func (r *studioRowRecord) fromPartial(o models.StudioPartial) {
 	r.setTimestamp("created_at", o.CreatedAt)
 	r.setTimestamp("updated_at", o.UpdatedAt)
 	r.setNullInt("rating", o.Rating)
+	r.setBool("favorite", o.Favorite)
 	r.setNullString("details", o.Details)
 	r.setBool("ignore_auto_tag", o.IgnoreAutoTag)
 }
@@ -496,6 +500,7 @@ func (qb *StudioStore) makeFilter(ctx context.Context, studioFilter *models.Stud
 	query.handleCriterion(ctx, stringCriterionHandler(studioFilter.Details, studioTable+".details"))
 	query.handleCriterion(ctx, stringCriterionHandler(studioFilter.URL, studioTable+".url"))
 	query.handleCriterion(ctx, intCriterionHandler(studioFilter.Rating100, studioTable+".rating", nil))
+	query.handleCriterion(ctx, boolCriterionHandler(studioFilter.Favorite, studioTable+".favorite", nil))
 	query.handleCriterion(ctx, boolCriterionHandler(studioFilter.IgnoreAutoTag, studioTable+".ignore_auto_tag", nil))
 
 	query.handleCriterion(ctx, criterionHandlerFunc(func(ctx context.Context, f *filterBuilder) {
@@ -517,6 +522,7 @@ func (qb *StudioStore) makeFilter(ctx context.Context, studioFilter *models.Stud
 	query.handleCriterion(ctx, studioGalleryCountCriterionHandler(qb, studioFilter.GalleryCount))
 	query.handleCriterion(ctx, studioParentCriterionHandler(qb, studioFilter.Parents))
 	query.handleCriterion(ctx, studioAliasCriterionHandler(qb, studioFilter.Aliases))
+	query.handleCriterion(ctx, studioChildCountCriterionHandler(qb, studioFilter.ChildCount))
 	query.handleCriterion(ctx, timestampCriterionHandler(studioFilter.CreatedAt, studioTable+".created_at"))
 	query.handleCriterion(ctx, timestampCriterionHandler(studioFilter.UpdatedAt, studioTable+".updated_at"))
 
@@ -649,6 +655,17 @@ func studioAliasCriterionHandler(qb *StudioStore, alias *models.StringCriterionI
 	return h.handler(alias)
 }
 
+func studioChildCountCriterionHandler(qb *StudioStore, childCount *models.IntCriterionInput) criterionHandlerFunc {
+	return func(ctx context.Context, f *filterBuilder) {
+		if childCount != nil {
+			f.addLeftJoin("studios", "children_count", "children_count.parent_id = studios.id")
+			clause, args := getIntCriterionWhereClause("count(distinct children_count.id)", *childCount)
+
+			f.addHaving(clause, args...)
+		}
+	}
+}
+
 func (qb *StudioStore) getStudioSort(findFilter *models.FindFilterType) string {
 	var sort string
 	var direction string
@@ -668,6 +685,8 @@ func (qb *StudioStore) getStudioSort(findFilter *models.FindFilterType) string {
 		sortQuery += getCountSort(studioTable, imageTable, studioIDColumn, direction)
 	case "galleries_count":
 		sortQuery += getCountSort(studioTable, galleryTable, studioIDColumn, direction)
+	case "child_count":
+		sortQuery += getCountSort(studioTable, studioTable, studioParentIDColumn, direction)
 	default:
 		sortQuery += getSort(sort, direction, "studios")
 	}

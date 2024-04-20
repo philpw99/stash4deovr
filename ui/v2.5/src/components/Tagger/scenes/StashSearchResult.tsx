@@ -5,12 +5,18 @@ import { FormattedMessage, useIntl } from "react-intl";
 import uniq from "lodash-es/uniq";
 import { blobToBase64 } from "base64-blob";
 import { distance } from "src/utils/hamming";
+import { faCheckCircle } from "@fortawesome/free-regular-svg-icons";
+import {
+  faPlus,
+  faTriangleExclamation,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 
 import * as GQL from "src/core/generated-graphql";
 import { HoverPopover } from "src/components/Shared/HoverPopover";
 import { Icon } from "src/components/Shared/Icon";
-import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { SuccessIcon } from "src/components/Shared/SuccessIcon";
+import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { TagSelect } from "src/components/Shared/Select";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { OperationButton } from "src/components/Shared/OperationButton";
@@ -22,8 +28,25 @@ import { SceneTaggerModalsState } from "./sceneTaggerModals";
 import PerformerResult from "./PerformerResult";
 import StudioResult from "./StudioResult";
 import { useInitialState } from "src/hooks/state";
-import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { getStashboxBase } from "src/utils/stashbox";
+import { ExternalLink } from "src/components/Shared/ExternalLink";
+import { compareScenesForSort } from "./utils";
+
+const getDurationIcon = (matchPercentage: number) => {
+  if (matchPercentage > 65)
+    return (
+      <Icon className="SceneTaggerIcon text-success" icon={faCheckCircle} />
+    );
+  if (matchPercentage > 35)
+    return (
+      <Icon
+        className="SceneTaggerIcon text-warning"
+        icon={faTriangleExclamation}
+      />
+    );
+
+  return <Icon className="SceneTaggerIcon text-danger" icon={faXmark} />;
+};
 
 const getDurationStatus = (
   scene: IScrapedScene,
@@ -51,10 +74,12 @@ const getDurationStatus = (
   else if (scene.duration && Math.abs(scene.duration - stashDuration) < 5)
     match = <FormattedMessage id="component_tagger.results.fp_matches" />;
 
+  const matchPercentage = (matchCount / durations.length) * 100;
+
   if (match)
     return (
       <div className="font-weight-bold">
-        <SuccessIcon className="mr-2" />
+        {getDurationIcon(matchPercentage)}
         {match}
       </div>
     );
@@ -145,7 +170,7 @@ const getFingerprintStatus = (
       <div>
         {phashMatches.length > 0 && (
           <div className="font-weight-bold">
-            <SuccessIcon className="mr-2" />
+            <SuccessIcon className="SceneTaggerIcon" />
             <HoverPopover
               placement="bottom"
               content={phashList}
@@ -488,14 +513,9 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
     const url = scene.urls?.length ? scene.urls[0] : null;
 
     const sceneTitleEl = url ? (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="scene-link"
-      >
+      <ExternalLink className="scene-link" href={url}>
         <TruncatedText text={scene.title} />
-      </a>
+      </ExternalLink>
     ) : (
       <TruncatedText text={scene.title} />
     );
@@ -592,9 +612,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
           >
             {scene.urls.map((url) => (
               <div key={url}>
-                <a href={url} target="_blank" rel="noopener noreferrer">
-                  {url}
-                </a>
+                <ExternalLink href={url}>{url}</ExternalLink>
               </div>
             ))}
           </OptionalField>
@@ -626,9 +644,9 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
             exclude={excludedFields[fields.stash_ids]}
             setExclude={(v) => setExcludedField(fields.stash_ids, v)}
           >
-            <a href={stashBoxURL} target="_blank" rel="noopener noreferrer">
+            <ExternalLink href={stashBoxURL}>
               {scene.remote_site_id}
-            </a>
+            </ExternalLink>
           </OptionalField>
         </div>
       );
@@ -793,17 +811,30 @@ export interface ISceneSearchResults {
 
 export const SceneSearchResults: React.FC<ISceneSearchResults> = ({
   target,
-  scenes,
+  scenes: unsortedScenes,
 }) => {
   const [selectedResult, setSelectedResult] = useState<number | undefined>();
 
+  const scenes = useMemo(
+    () =>
+      unsortedScenes
+        .slice()
+        .sort((scrapedSceneA, scrapedSceneB) =>
+          compareScenesForSort(target, scrapedSceneA, scrapedSceneB)
+        ),
+    [unsortedScenes, target]
+  );
+
   useEffect(() => {
-    if (!scenes) {
-      setSelectedResult(undefined);
-    } else if (scenes.length > 0 && scenes[0].resolved) {
-      setSelectedResult(0);
+    // #3198 - if the selected result is no longer in the list, reset it
+    if (selectedResult && scenes?.length <= selectedResult) {
+      if (!scenes) {
+        setSelectedResult(undefined);
+      } else if (scenes.length > 0 && scenes[0].resolved) {
+        setSelectedResult(0);
+      }
     }
-  }, [scenes]);
+  }, [scenes, selectedResult]);
 
   function getClassName(i: number) {
     return cx("row mx-0 mt-2 search-result", {

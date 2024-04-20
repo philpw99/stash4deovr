@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strconv"
 
 	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/internal/manager/config"
+	"github.com/stashapp/stash/internal/manager/task"
+	"github.com/stashapp/stash/pkg/ffmpeg"
 	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
+	"github.com/stashapp/stash/pkg/utils"
 )
 
 var ErrOverriddenConfig = errors.New("cannot set overridden value")
@@ -21,9 +25,32 @@ func (r *mutationResolver) Setup(ctx context.Context, input manager.SetupInput) 
 	return err == nil, err
 }
 
-func (r *mutationResolver) Migrate(ctx context.Context, input manager.MigrateInput) (bool, error) {
-	err := manager.GetInstance().Migrate(ctx, input)
-	return err == nil, err
+func (r *mutationResolver) DownloadFFMpeg(ctx context.Context) (string, error) {
+	mgr := manager.GetInstance()
+	configDir := mgr.Config.GetConfigPath()
+
+	// don't run if ffmpeg is already installed
+	ffmpegPath := ffmpeg.FindFFMpeg(configDir)
+	ffprobePath := ffmpeg.FindFFProbe(configDir)
+	if ffmpegPath != "" && ffprobePath != "" {
+		return "", fmt.Errorf("ffmpeg and ffprobe already installed at %s and %s", ffmpegPath, ffprobePath)
+	}
+
+	t := &task.DownloadFFmpegJob{
+		ConfigDirectory: configDir,
+		OnComplete: func(ctx context.Context) {
+			// clear the ffmpeg and ffprobe paths
+			logger.Infof("Clearing ffmpeg and ffprobe config paths so they are resolved from the config directory")
+			mgr.Config.Set(config.FFMpegPath, "")
+			mgr.Config.Set(config.FFProbePath, "")
+			mgr.RefreshFFMpeg(ctx)
+			mgr.RefreshStreamManager()
+		},
+	}
+
+	jobID := mgr.JobManager.Add(ctx, "Downloading ffmpeg...", t)
+
+	return strconv.Itoa(jobID), nil
 }
 
 func (r *mutationResolver) ConfigureGeneral(ctx context.Context, input ConfigGeneralInput) (*ConfigGeneralResult, error) {
@@ -165,10 +192,32 @@ func (r *mutationResolver) ConfigureGeneral(ctx context.Context, input ConfigGen
 			return makeConfigGeneralResult(), fmt.Errorf("blobs path must be set when using filesystem storage")
 		}
 
-		// TODO - migrate between systems
 		c.Set(config.BlobsStorage, input.BlobsStorage)
 
 		refreshBlobStorage = true
+	}
+
+	refreshFfmpeg := false
+	if input.FfmpegPath != nil && *input.FfmpegPath != c.GetFFMpegPath() {
+		if *input.FfmpegPath != "" {
+			if err := ffmpeg.ValidateFFMpeg(*input.FfmpegPath); err != nil {
+				return makeConfigGeneralResult(), fmt.Errorf("invalid ffmpeg path: %w", err)
+			}
+		}
+
+		c.Set(config.FFMpegPath, input.FfmpegPath)
+		refreshFfmpeg = true
+	}
+
+	if input.FfprobePath != nil && *input.FfprobePath != c.GetFFProbePath() {
+		if *input.FfprobePath != "" {
+			if err := ffmpeg.ValidateFFProbe(*input.FfprobePath); err != nil {
+				return makeConfigGeneralResult(), fmt.Errorf("invalid ffprobe path: %w", err)
+			}
+		}
+
+		c.Set(config.FFProbePath, input.FfprobePath)
+		refreshFfmpeg = true
 	}
 
 	if input.VideoFileNamingAlgorithm != nil && *input.VideoFileNamingAlgorithm != c.GetVideoFileNamingAlgorithm() {
@@ -382,6 +431,12 @@ func (r *mutationResolver) ConfigureGeneral(ctx context.Context, input ConfigGen
 	}
 	if refreshPluginCache {
 		manager.GetInstance().RefreshPluginCache()
+	}
+	if refreshFfmpeg {
+		manager.GetInstance().RefreshFFMpeg(ctx)
+
+		// refresh stream manager is required since ffmpeg changed
+		refreshStreamManager = true
 	}
 	if refreshStreamManager {
 		manager.GetInstance().RefreshStreamManager()
@@ -639,9 +694,19 @@ func (r *mutationResolver) GenerateAPIKey(ctx context.Context, input GenerateAPI
 	return newAPIKey, nil
 }
 
-func (r *mutationResolver) ConfigureUI(ctx context.Context, input map[string]interface{}) (map[string]interface{}, error) {
+func (r *mutationResolver) ConfigureUI(ctx context.Context, input map[string]interface{}, partial map[string]interface{}) (map[string]interface{}, error) {
 	c := config.GetInstance()
-	c.SetUIConfiguration(input)
+
+	if input != nil {
+		c.SetUIConfiguration(input)
+	}
+
+	if partial != nil {
+		// merge partial into existing config
+		existing := c.GetUIConfiguration()
+		utils.MergeMaps(existing, partial)
+		c.SetUIConfiguration(existing)
+	}
 
 	if err := c.Write(); err != nil {
 		return c.GetUIConfiguration(), err
@@ -653,10 +718,10 @@ func (r *mutationResolver) ConfigureUI(ctx context.Context, input map[string]int
 func (r *mutationResolver) ConfigureUISetting(ctx context.Context, key string, value interface{}) (map[string]interface{}, error) {
 	c := config.GetInstance()
 
-	cfg := c.GetUIConfiguration()
-	cfg[key] = value
+	cfg := utils.NestedMap(c.GetUIConfiguration())
+	cfg.Set(key, value)
 
-	return r.ConfigureUI(ctx, cfg)
+	return r.ConfigureUI(ctx, cfg, nil)
 }
 
 func (r *mutationResolver) ConfigurePlugin(ctx context.Context, pluginID string, input map[string]interface{}) (map[string]interface{}, error) {

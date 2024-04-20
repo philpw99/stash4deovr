@@ -10,7 +10,7 @@ import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient as createWSClient } from "graphql-ws";
 import { onError } from "@apollo/client/link/error";
 import { getMainDefinition } from "@apollo/client/utilities";
-import { createUploadLink } from "apollo-upload-client";
+import createUploadLink from "apollo-upload-client/createUploadLink.mjs";
 import * as GQL from "src/core/generated-graphql";
 import { FieldReadFunction } from "@apollo/client/cache";
 
@@ -144,15 +144,15 @@ export const createClient = () => {
 
   const httpLink = createUploadLink({ uri: url.toString() });
 
-  const wsLink = new GraphQLWsLink(
-    createWSClient({
-      url: wsUrl.toString(),
-      retryAttempts: Infinity,
-      shouldRetry() {
-        return true;
-      },
-    })
-  );
+  const wsClient = createWSClient({
+    url: wsUrl.toString(),
+    retryAttempts: Infinity,
+    shouldRetry() {
+      return true;
+    },
+  });
+
+  const wsLink = new GraphQLWsLink(wsClient);
 
   const errorLink = onError(({ networkError }) => {
     // handle graphql unauthorized error
@@ -211,5 +211,6 @@ Please disable it on the server and refresh the page.`);
   return {
     cache,
     client,
+    wsClient,
   };
 };

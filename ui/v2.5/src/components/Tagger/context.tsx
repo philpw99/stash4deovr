@@ -25,6 +25,7 @@ import { useToast } from "src/hooks/Toast";
 import { ConfigurationContext } from "src/hooks/Config";
 import { ITaggerSource, SCRAPER_PREFIX, STASH_BOX_PREFIX } from "./constants";
 import { errorToString } from "src/utils";
+import { mergeStudioStashIDs } from "./utils";
 
 export interface ITaggerContextState {
   config: ITaggerConfig;
@@ -252,6 +253,14 @@ export const TaggerContext: React.FC = ({ children }) => {
     });
   }
 
+  function clearSearchResults(sceneID: string) {
+    setSearchResults((current) => {
+      const newSearchResults = { ...current };
+      delete newSearchResults[sceneID];
+      return newSearchResults;
+    });
+  }
+
   async function doSceneQuery(sceneID: string, searchVal: string) {
     if (!currentSource) {
       return;
@@ -259,6 +268,7 @@ export const TaggerContext: React.FC = ({ children }) => {
 
     try {
       setLoading(true);
+      clearSearchResults(sceneID);
 
       const results = await queryScrapeSceneQuery(
         currentSource.sourceInput,
@@ -293,6 +303,8 @@ export const TaggerContext: React.FC = ({ children }) => {
     if (!currentSource) {
       return;
     }
+
+    clearSearchResults(sceneID);
 
     let newResult: ISceneQueryResult;
 
@@ -329,11 +341,7 @@ export const TaggerContext: React.FC = ({ children }) => {
       return;
     }
 
-    setSearchResults((current) => {
-      const newResults = { ...current };
-      delete newResults[sceneID];
-      return newResults;
-    });
+    clearSearchResults(sceneID);
 
     try {
       setLoading(true);
@@ -453,14 +461,6 @@ export const TaggerContext: React.FC = ({ children }) => {
         [sceneID]: { ...searchResults[sceneID], results: newResult },
       });
     }
-  }
-
-  function clearSearchResults(sceneID: string) {
-    setSearchResults((current) => {
-      const newSearchResults = { ...current };
-      delete newSearchResults[sceneID];
-      return newSearchResults;
-    });
   }
 
   async function saveScene(
@@ -708,6 +708,11 @@ export const TaggerContext: React.FC = ({ children }) => {
 
   async function updateExistingStudio(input: GQL.StudioUpdateInput) {
     try {
+      const inputCopy = { ...input };
+      inputCopy.stash_ids = await mergeStudioStashIDs(
+        input.id,
+        input.stash_ids ?? []
+      );
       const result = await updateStudio({
         variables: {
           input: input,

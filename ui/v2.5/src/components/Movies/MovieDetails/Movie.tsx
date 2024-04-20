@@ -33,11 +33,11 @@ import TextUtils from "src/utils/text";
 import { Icon } from "src/components/Shared/Icon";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import { ConfigurationContext } from "src/hooks/Config";
-import { IUIConfig } from "src/core/config";
 import { DetailImage } from "src/components/Shared/DetailImage";
 import { useRatingKeybinds } from "src/hooks/keybinds";
 import { useLoadStickyHeader } from "src/hooks/detailsPanel";
 import { useScrollToTopOnMount } from "src/hooks/scrollToTop";
+import { ExternalLink } from "src/components/Shared/ExternalLink";
 
 interface IProps {
   movie: GQL.MovieDataFragment;
@@ -54,7 +54,7 @@ const MoviePage: React.FC<IProps> = ({ movie }) => {
 
   // Configuration settings
   const { configuration } = React.useContext(ConfigurationContext);
-  const uiConfig = configuration?.ui as IUIConfig | undefined;
+  const uiConfig = configuration?.ui;
   const enableBackgroundImage = uiConfig?.enableMovieBackgroundImage ?? false;
   const compactExpandedDetails = uiConfig?.compactExpandedDetails ?? false;
   const showAllDetails = uiConfig?.showAllDetails ?? true;
@@ -129,7 +129,7 @@ const MoviePage: React.FC<IProps> = ({ movie }) => {
 
   useRatingKeybinds(
     true,
-    configuration?.ui?.ratingSystemOptions?.type,
+    configuration?.ui.ratingSystemOptions?.type,
     setRating
   );
 
@@ -274,15 +274,13 @@ const MoviePage: React.FC<IProps> = ({ movie }) => {
   const renderClickableIcons = () => (
     <span className="name-icons">
       {movie.url && (
-        <Button className="minimal icon-link" title={movie.url}>
-          <a
-            href={TextUtils.sanitiseURL(movie.url)}
-            className="link"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Icon icon={faLink} />
-          </a>
+        <Button
+          as={ExternalLink}
+          href={TextUtils.sanitiseURL(movie.url)}
+          className="minimal link"
+          title={movie.url}
+        >
+          <Icon icon={faLink} />
         </Button>
       )}
     </span>
@@ -429,6 +427,8 @@ const MoviePage: React.FC<IProps> = ({ movie }) => {
               <RatingSystem
                 value={movie.rating100}
                 onSetRating={(value) => setRating(value)}
+                clickToRate
+                withoutContext
               />
               {maybeRenderDetails()}
               {maybeRenderEditPanel()}
