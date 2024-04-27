@@ -9,7 +9,7 @@ In the end I decided that it's better to create this fork that I can apply my ch
 The benefit is that while I can finally implement the changes, I was also able to make my code shorter and better. Today my added code is actually tiny, but works well with most video players.
 
 ### Which video player is compatible with this Stash build?
-The list is current not complete, please send me messages, I will add them to it.
+The list is current not complete, please send me a [message here](https://github.com/philpw99/stash4deovr/discussions), I will add them to it.
 
  | Player Name | Platform | Browsing | Video Playing | Notes |
  | --- | :---: | :---: | :---: | :--- |
