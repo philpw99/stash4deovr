@@ -12,9 +12,13 @@ The benefit is that while I can finally implement the changes, I was also able t
 
 ### Which video player is compatible with this Stash build?
 The list is current not complete, please send me messages, I will add them to it.
-* DeoVR Player. Windows or Meta Quest.
-* Common browsers in Windows like Firefox, Chrome and Edge.
-* Oculus Quest Browser
+
+ | Player Name | Platform | Browsing | Video Playing | Notes |
+ | --- | :---: | :---: | :---: | :--- |
+ | DeoVR Player | Windows/Quest | ✔ | ✔ | Browser is small.<br>Need to switch to "wall" view in Stash. |
+ | Web Browsers | Windows | ✔ | ✔ | |
+ | Oculus Browser | Quest 2/3 | ✔ | ✔ | Browser can be large if you switch to "expand" mode.<br>Supports 3D/VR videos. |
+ | PotPlayer | Windows  |  | ✔ | Supports direct "Open Ext." links. |
 
 ### Usage
 Just replace the stash-Win.exe/stash-macos/stash-linux with the one in the release, and you are done.
