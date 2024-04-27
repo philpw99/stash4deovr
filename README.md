@@ -1,5 +1,3 @@
-# Stash
-
 ## This a special build not only for DeoVR, but can be used for other video players with browser built-in as well.
 
 ### Why do I need this customized build of Stash ?
