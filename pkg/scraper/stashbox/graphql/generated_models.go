@@ -88,8 +88,8 @@ type DraftEntity struct {
 	ID   *string `json:"id,omitempty"`
 }
 
-func (DraftEntity) IsSceneDraftStudio()    {}
 func (DraftEntity) IsSceneDraftTag()       {}
+func (DraftEntity) IsSceneDraftStudio()    {}
 func (DraftEntity) IsSceneDraftPerformer() {}
 
 type DraftEntityInput struct {
@@ -179,11 +179,13 @@ type EditQueryInput struct {
 	// Filter by user voted status
 	Voted *UserVotedFilterEnum `json:"voted,omitempty"`
 	// Filter to bot edits only
-	IsBot     *bool             `json:"is_bot,omitempty"`
-	Page      int               `json:"page"`
-	PerPage   int               `json:"per_page"`
-	Direction SortDirectionEnum `json:"direction"`
-	Sort      EditSortEnum      `json:"sort"`
+	IsBot *bool `json:"is_bot,omitempty"`
+	// Filter out user's own edits
+	IncludeUserSubmitted *bool             `json:"include_user_submitted,omitempty"`
+	Page                 int               `json:"page"`
+	PerPage              int               `json:"per_page"`
+	Direction            SortDirectionEnum `json:"direction"`
+	Sort                 EditSortEnum      `json:"sort"`
 }
 
 type EditVote struct {
@@ -246,6 +248,12 @@ type FuzzyDate struct {
 	Accuracy DateAccuracyEnum `json:"accuracy"`
 }
 
+type GenerateInviteCodeInput struct {
+	Keys *int `json:"keys,omitempty"`
+	Uses *int `json:"uses,omitempty"`
+	TTL  *int `json:"ttl,omitempty"`
+}
+
 type GrantInviteInput struct {
 	UserID string `json:"user_id"`
 	Amount int    `json:"amount"`
@@ -285,6 +293,12 @@ type ImageUpdateInput struct {
 type IntCriterionInput struct {
 	Value    int               `json:"value"`
 	Modifier CriterionModifier `json:"modifier"`
+}
+
+type InviteKey struct {
+	ID      string     `json:"id"`
+	Uses    *int       `json:"uses,omitempty"`
+	Expires *time.Time `json:"expires,omitempty"`
 }
 
 type Measurements struct {
@@ -865,6 +879,7 @@ type StashBoxConfig struct {
 	VotingPeriod               int    `json:"voting_period"`
 	MinDestructiveVotingPeriod int    `json:"min_destructive_voting_period"`
 	VoteCronInterval           string `json:"vote_cron_interval"`
+	GuidelinesURL              string `json:"guidelines_url"`
 }
 
 type StringCriterionInput struct {
@@ -1074,10 +1089,11 @@ type User struct {
 	//  Edit counts by status
 	EditCount *UserEditCount `json:"edit_count,omitempty"`
 	// Calls to the API from this user over a configurable time period
-	APICalls          int      `json:"api_calls"`
-	InvitedBy         *User    `json:"invited_by,omitempty"`
-	InviteTokens      *int     `json:"invite_tokens,omitempty"`
-	ActiveInviteCodes []string `json:"active_invite_codes,omitempty"`
+	APICalls          int          `json:"api_calls"`
+	InvitedBy         *User        `json:"invited_by,omitempty"`
+	InviteTokens      *int         `json:"invite_tokens,omitempty"`
+	ActiveInviteCodes []string     `json:"active_invite_codes,omitempty"`
+	InviteCodes       []*InviteKey `json:"invite_codes,omitempty"`
 }
 
 type UserChangePasswordInput struct {
