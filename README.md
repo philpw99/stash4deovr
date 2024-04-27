@@ -1,6 +1,6 @@
-## This a special build not only for DeoVR, but can be used for other video players with browser built-in as well.
+## This a special build of [StashApp](https://github.com/stashapp/stash) for DeoVR, browsers and other video players.
 
-### Why do I need this customized build of Stash ?
+### Why do I need this?
 Stash is a wonderful video collection management server. It offers so many great features for you to organize the videos/images whatever the way you want. However, it still misses a crucial feature: serving the files.<p>
 It's beyond my understanding that the official Stash serves everything from tags, studios, performers to multiple-file entries, but it won't serve the video file to you directly. The best you can do is using a scene's "stream" link, which doesn't do well in many video players.<p>
 For example, in DeoVR, the stream link won't work. In other video players, the stream link will make them regard everything from Stash as the same file. Thus whenever you play a new steam link, the video player will most likely jump to the end, thinking you are playing the last video file.<p>
@@ -19,10 +19,12 @@ The list is current not complete, please send me messages, I will add them to it
  | PotPlayer | Windows  |  | ✔ | Supports direct "Open Ext." links. |
 
 ### Usage
-Just replace the stash-Win.exe/stash-macos/stash-linux with the one in the release, and you are done.
+Just replace the stash-win.exe/stash-macos/stash-linux with the one in the release, and you are done.
 
 You can open DeoVR and use the browser to open the Stash webpage, then click on "Open Ext." button to play the VR videos in DeoVR.
 It works both in https or http. It's the most reliable way for DeoVR and Stash to work together.
+
+# Original Readme from Stash
 
 [![Build](https://github.com/stashapp/stash/actions/workflows/build.yml/badge.svg?branch=develop&event=push)](https://github.com/stashapp/stash/actions/workflows/build.yml)
 [![Docker pulls](https://img.shields.io/docker/pulls/stashapp/stash.svg)](https://hub.docker.com/r/stashapp/stash 'DockerHub')
