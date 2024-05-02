@@ -2,14 +2,18 @@
 
 ### Why do I need this?
 Stash is a wonderful video collection management server. It offers so many great features for you to organize the videos/images whatever the way you want. However, it still misses a crucial feature: serving the files.<p>
-It's beyond my understanding that the official Stash serves everything from tags, studios, performers to multiple-file entries, but it won't serve the video file to you directly. The best you can do is using a scene's "stream" link, which doesn't do well in many video players.<p>
+Therefore, when you see a beautiful VR video list from Stash:<p>
+![Scenes Stash](https://github.com/philpw99/stash4deovr/assets/22040708/4dc5dac3-c66a-4299-911e-fe709ada2712)
+You cannot click one and make it play in DeoVR. Because Stash doesn't provide you a way to serve the video file directly.<p>
+
+It's beyond my understanding that the official Stash serves everything from tags, studios, performers to multiple-file entries, but it won't serve the video files directly. The best you can do is using a scene's "stream" link, which doesn't do well in many video players.<p>
 For example, in DeoVR, the stream link won't work. In other video players, the stream link will make them regard everything from Stash as the same file. Thus whenever you play a new steam link, the video player will most likely jump to the end, thinking you are playing the last video file.<p>
 I tried to create a pull request to Stash 2 years ago. At that time I was really new to the Github and Stash, though the nice mod there did tried to help me with that request, the code itself was not good. So my pull request was just laid there for a few months.
 In the end I decided that it's better to create this fork that I can apply my changes and methods. I just need to update the underlying code from time to time.<p>
 The benefit is that while I can finally implement the changes, I was also able to make my code shorter and better. Today my added code is actually tiny, but works well with most video players.
 
 ### Which video player is compatible with this Stash build?
-The list is current not complete, please send me messages, I will add them to it.
+The list is current not complete, please send me a [message here](https://github.com/philpw99/stash4deovr/discussions), I will add them to it.
 
  | Player Name | Platform | Browsing | Video Playing | Notes |
  | --- | :---: | :---: | :---: | :--- |
@@ -22,6 +26,8 @@ The list is current not complete, please send me messages, I will add them to it
 Just replace the stash-win.exe/stash-macos/stash-linux with the one in the release, and you are done.
 
 You can open DeoVR and use the browser to open the Stash webpage, then click on "Open Ext." button to play the VR videos in DeoVR.
+![Open Ext button](https://github.com/philpw99/stash4deovr/assets/22040708/b5510478-9ec0-41e1-b1cd-066c5e51c867)
+
 It works both in https or http. It's the most reliable way for DeoVR and Stash to work together.
 
 # Original Readme from Stash
