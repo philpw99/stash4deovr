@@ -102,7 +102,9 @@ func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Error in getting the file.
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("File request URL error: " + r.URL.String() + " \nFile:" + chi.URLParam(r, "streamOrgFile")))
+		if _, err := w.Write([]byte("File request URL error: " + r.URL.String() + " \nFile:" + chi.URLParam(r, "streamOrgFile"))); err != nil {
+			logger.Warnf("[scene] Error: $v File URL error: $v", err, sFile)
+		}
 		return
 	}
 
@@ -118,7 +120,7 @@ func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
 	if f == nil {
 		w.WriteHeader(http.StatusNotFound)
 		if _, err := w.Write([]byte("Primary file not found for streaming original file.")); err != nil {
-			logger.Warnf("[scene] error getting primary file for streaming original: $v", err)
+			logger.Warnf("[scene] Error getting primary file for streaming original: $v", err)
 		}
 		return
 	}
@@ -128,7 +130,9 @@ func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
 	sFullPath := filepath.Dir(f.Path) + string(filepath.Separator) + sFile
 	if _, err := os.Stat(sFullPath); errors.Is(err, os.ErrNotExist) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Error: File not found. Is the hard disk offline?\nFull Path: " + sFullPath))
+		if _, err := w.Write([]byte("Error: File not found. Is the hard disk offline?\nFull Path: " + sFullPath)); err != nil {
+			logger.Warnf("[scene] Error: $v, File not found: $v", err, sFullPath)
+		}
 		return
 	}
 	http.ServeFile(w, r, sFullPath)
