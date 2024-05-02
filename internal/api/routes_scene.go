@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -96,10 +98,16 @@ func (rs sceneRoutes) Routes() chi.Router {
 // Added:
 func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
 	scene := r.Context().Value(sceneKey).(*models.Scene)
-	// check if it's funscript
-	aStr := strings.Split(chi.URLParam(r, "streamOrgFile"), ".")
-	// aStr := strings.Split(r.RequestURI, ".")
-	if strings.ToLower(aStr[len(aStr)-1]) == "funscript" {
+	sFile, err := url.QueryUnescape(chi.URLParam(r, "streamOrgFile"))
+	if err != nil {
+		// Error in getting the file.
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("File request URL error: " + r.URL.String() + " \nFile:" + chi.URLParam(r, "streamOrgFile")))
+		return
+	}
+
+	// check if it's a good extension
+	if filepath.Ext(sFile) == "funscript" {
 		// it's a funscript request
 		rs.Funscript(w, r)
 		return
@@ -114,12 +122,16 @@ func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	// Also return 404 if the actual video file cannot be found
-	if _, err := os.Stat(f.Path); errors.Is(err, os.ErrNotExist) {
+
+	// Also return 404 if the actual file cannot be found
+	// The file serving can be srt, vtt, jpg, or whatever the files in the the same folder as the org file.
+	sFullPath := filepath.Dir(f.Path) + string(filepath.Separator) + sFile
+	if _, err := os.Stat(sFullPath); errors.Is(err, os.ErrNotExist) {
 		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Error: File not found. Is the hard disk offline?\nFull Path: " + sFullPath))
 		return
 	}
-	http.ServeFile(w, r, f.Path)
+	http.ServeFile(w, r, sFullPath)
 }
 
 func (rs sceneRoutes) StreamDirect(w http.ResponseWriter, r *http.Request) {
