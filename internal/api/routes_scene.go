@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -104,8 +105,7 @@ func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// return 404 if the scene does not have file
-
+	// return 404 if the scene does not have a primary file
 	f := scene.Files.Primary()
 	if f == nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -115,6 +115,10 @@ func (rs sceneRoutes) StreamOrgDirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Also return 404 if the actual video file cannot be found
+	if _, err := os.Stat(f.Path); errors.Is(err, os.ErrNotExist) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 	http.ServeFile(w, r, f.Path)
 }
 
